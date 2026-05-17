@@ -1,0 +1,6 @@
+{
+  "name": "World Cup 2026 Tracker",
+  "description": "Theo dõi lịch thi đấu, kết quả và bảng xếp hạng FIFA World Cup 2026",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
