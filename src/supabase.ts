@@ -39,8 +39,8 @@ export async function loadSnapshot(): Promise<AppSnapshot | null> {
     .eq('room_id', ROOM_ID)
     .maybeSingle();
   if (error) {
-    console.warn('[supabase] load error', error.message);
-    return null;
+    console.error('[supabase] load error', error);
+    throw new Error(error.message);
   }
   return (data?.data as AppSnapshot) ?? null;
 }
@@ -56,13 +56,19 @@ export async function saveSnapshot(snapshot: AppSnapshot): Promise<void> {
     },
     { onConflict: 'room_id' }
   );
-  if (error) console.warn('[supabase] save error', error.message);
+  if (error) {
+    console.error('[supabase] save error', error);
+    throw new Error(error.message);
+  }
 }
 
 export async function clearSnapshot(): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from(TABLE).delete().eq('room_id', ROOM_ID);
-  if (error) console.warn('[supabase] clear error', error.message);
+  if (error) {
+    console.error('[supabase] clear error', error);
+    throw new Error(error.message);
+  }
 }
 
 export function subscribeSnapshot(onChange: (snap: AppSnapshot) => void): () => void {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Calendar, Trophy, Save, Edit3, Users, Shuffle, ChevronLeft, ChevronRight, Home, Newspaper, Search, Filter, Sun, Moon, AlertTriangle, X } from 'lucide-react';
+import { Calendar, Trophy, Save, Edit3, Users, Shuffle, ChevronLeft, ChevronRight, Home, Newspaper, Search, Filter, Sun, Moon, AlertTriangle, X, ArrowLeftRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { initialTeams, initialMatches } from './data';
 import { Match, Team, TeamStats, GroupAssignmentHistory, MatchAssignment } from './types';
@@ -252,11 +252,12 @@ export default function App() {
     if (json === lastSnapshotRef.current) return;
     setCloudStatus('syncing');
     const t = setTimeout(async () => {
-      lastSnapshotRef.current = json;
       try {
         await saveSnapshot(snapshot);
+        lastSnapshotRef.current = json;
         setCloudStatus('synced');
-      } catch {
+      } catch (e) {
+        console.warn('[cloud] save failed', e);
         setCloudStatus('error');
       }
     }, 600);
@@ -388,6 +389,22 @@ export default function App() {
       if (side === 'team1') return { ...m, team1Id: teamId || null };
       return { ...m, team2Id: teamId || null };
     }));
+  };
+
+  const handleMovePlayerBetweenGroups = (group: string, player: string, from: 'group1' | 'group2') => {
+    setGroupAssignments(prev => {
+      const data = prev[group];
+      if (!data) return prev;
+      const to = from === 'group1' ? 'group2' : 'group1';
+      return {
+        ...prev,
+        [group]: {
+          ...data,
+          [from]: data[from].filter(p => p !== player),
+          [to]: [...data[to], player],
+        },
+      };
+    });
   };
 
   const getTeamName = (id: string | null, placeholder?: string, includeFlag = true) => {
@@ -589,17 +606,32 @@ export default function App() {
 
           <div className="flex items-center gap-2 sm:gap-4">
             {supabaseEnabled && (
-              <div
+              <button
+                type="button"
+                onClick={async () => {
+                  setCloudStatus('syncing');
+                  try {
+                    const cloud = await loadSnapshot();
+                    if (cloud) {
+                      applyCloudSnapshot(cloud);
+                      lastSnapshotRef.current = JSON.stringify(cloud);
+                    }
+                    setCloudStatus('synced');
+                  } catch (e) {
+                    console.warn('[cloud] manual reload failed', e);
+                    setCloudStatus('error');
+                  }
+                }}
                 title={
                   cloudStatus === 'synced'
-                    ? 'Đã đồng bộ trên cloud'
+                    ? 'Đã đồng bộ trên cloud — bấm để tải lại'
                     : cloudStatus === 'syncing'
                     ? 'Đang đồng bộ...'
                     : cloudStatus === 'error'
-                    ? 'Lỗi đồng bộ — đang dùng dữ liệu offline'
+                    ? 'Lỗi đồng bộ — bấm để thử lại (xem Console để biết chi tiết)'
                     : 'Cloud sync tắt'
                 }
-                className="hidden sm:flex items-center gap-1.5 px-2.5 h-9 rounded-lg bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-slate-800"
+                className="hidden sm:flex items-center gap-1.5 px-2.5 h-9 rounded-lg bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all active:scale-95"
               >
                 <span
                   className={`w-2 h-2 rounded-full ${
@@ -611,9 +643,9 @@ export default function App() {
                   }`}
                 />
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  {cloudStatus === 'synced' ? 'Synced' : cloudStatus === 'syncing' ? 'Sync' : 'Offline'}
+                  {cloudStatus === 'synced' ? 'Synced' : cloudStatus === 'syncing' ? 'Sync' : cloudStatus === 'error' ? 'Error' : 'Offline'}
                 </span>
-              </div>
+              </button>
             )}
             <button
               onClick={() => setIsDarkMode(!isDarkMode)}
@@ -646,8 +678,8 @@ export default function App() {
             transition={{ duration: 0.3 }}
           >
             {activeTab === 'matches' && (
-              <div className="space-y-12">
-                <div className="flex flex-col md:flex-row md:items-start justify-between gap-8">
+              <div className="space-y-8 sm:space-y-12">
+                <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 md:gap-8">
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
                        <span className="w-8 h-1 bg-[#8A1538] rounded-full"></span>
@@ -669,7 +701,7 @@ export default function App() {
                       <button
                         key={view.id}
                         onClick={() => setMatchView(view.id as any)}
-                        className={`group/tab relative px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2.5 ${
+                        className={`group/tab relative px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 sm:gap-2.5 ${
                           isActive 
                             ? 'text-white' 
                             : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -688,8 +720,8 @@ export default function App() {
                           <Icon className={`w-3.5 h-3.5 transition-colors ${isActive ? 'text-white drop-shadow' : view.iconColor}`} />
                         </span>
                         <span className="relative z-10 flex flex-col items-start leading-none">
-                          <span className="text-[11px] font-black tracking-wider">{view.label}</span>
-                          <span className={`text-[8px] font-bold tracking-[0.25em] mt-0.5 ${isActive ? 'text-white/70' : 'text-slate-400 dark:text-slate-600'}`}>{view.sub}</span>
+                          <span className="text-[10px] sm:text-[11px] font-black tracking-wider whitespace-nowrap">{view.label}</span>
+                          <span className={`text-[8px] font-bold tracking-[0.25em] mt-0.5 hidden sm:inline ${isActive ? 'text-white/70' : 'text-slate-400 dark:text-slate-600'}`}>{view.sub}</span>
                         </span>
                       </button>
                       );
@@ -698,7 +730,7 @@ export default function App() {
                 </div>
 
                 {matchView === 'by_group' && (
-                  <div className="space-y-12">
+                  <div className="space-y-8 sm:space-y-12">
                     <div className="flex items-center gap-2 overflow-x-auto pb-4 scrollbar-hide snap-x">
                       {allStages.map(stage => {
                         const isGroup = groupsList.includes(stage);
@@ -777,7 +809,7 @@ export default function App() {
                               const canReset = !!team && isKnockoutCard && !!(side === 'left' ? match.team1Placeholder : match.team2Placeholder);
                               if (team) {
                                 const medallion = (
-                                  <div className={`w-24 h-24 bg-gradient-to-br ${colorScheme.bgGradient} rounded-full flex items-center justify-center text-4xl shadow-[0_15px_30px_rgb(0,0,0,0.06)] dark:shadow-[0_15px_30px_rgb(0,0,0,0.3)] ring-4 ring-white dark:ring-[#141414] group-hover/team:scale-110 transition-all duration-500`}>
+                                  <div className={`w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-gradient-to-br ${colorScheme.bgGradient} rounded-full flex items-center justify-center text-2xl sm:text-3xl md:text-4xl shadow-[0_15px_30px_rgb(0,0,0,0.06)] dark:shadow-[0_15px_30px_rgb(0,0,0,0.3)] ring-4 ring-white dark:ring-[#141414] group-hover/team:scale-110 transition-all duration-500`}>
                                     {team.flag}
                                   </div>
                                 );
@@ -812,11 +844,11 @@ export default function App() {
                                 ? 'text-sky-500/80 dark:text-sky-400/80'
                                 : 'text-[#8A1538]/70 dark:text-rose-400/80';
                               return (
-                                <div className="relative w-24 h-24">
+                                <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24">
                                   <div className={`absolute inset-0 rounded-full bg-gradient-to-br ${ringGrad} opacity-90 shadow-[0_15px_30px_rgba(0,0,0,0.1)] dark:shadow-[0_15px_30px_rgba(0,0,0,0.4)] p-[3px] ring-4 ring-white dark:ring-[#141414]`}>
                                     <div className={`w-full h-full rounded-full bg-gradient-to-br ${innerGrad} flex flex-col items-center justify-center group-hover/team:rotate-[8deg] transition-transform duration-500`}>
-                                      <span className={`font-display font-black text-2xl leading-none ${tokenText} drop-shadow-sm`}>{token}</span>
-                                      <span className={`text-[8px] font-black uppercase tracking-[0.25em] ${tbdText} mt-0.5`}>TBD</span>
+                                      <span className={`font-display font-black text-lg sm:text-xl md:text-2xl leading-none ${tokenText} drop-shadow-sm`}>{token}</span>
+                                      <span className={`text-[7px] sm:text-[8px] font-black uppercase tracking-[0.25em] ${tbdText} mt-0.5`}>TBD</span>
                                     </div>
                                   </div>
                                 </div>
@@ -838,11 +870,11 @@ export default function App() {
                                   </>
                                 )}
                                 
-                                <div className="relative p-6 sm:p-8">
-                                  <div className="flex items-center justify-between mb-8 gap-3">
-                                    <div className={`flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest ${groupColor.text} px-3 py-1.5 rounded-full border ${groupColor.border} bg-white dark:bg-[#141414] shadow-sm`}>
+                                <div className="relative p-4 sm:p-6 md:p-8">
+                                  <div className="flex items-center justify-between mb-5 sm:mb-8 gap-2 sm:gap-3">
+                                    <div className={`flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest ${groupColor.text} px-2 sm:px-3 py-1.5 rounded-full border ${groupColor.border} bg-white dark:bg-[#141414] shadow-sm`}>
                                       <span className={`${groupColor.bg} w-5 h-5 rounded-full flex items-center justify-center -ml-1.5`}>M{match.id.replace('M', '')}</span>
-                                      <span className="truncate max-w-[120px]">{match.location}</span>
+                                      <span className="truncate max-w-[80px] sm:max-w-[120px]">{match.location}</span>
                                     </div>
                                     {isKnockoutCard && (
                                       <div className="hidden sm:flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.25em] text-amber-600 dark:text-amber-400">
@@ -857,10 +889,10 @@ export default function App() {
 
                                   <div className="grid grid-cols-11 items-center gap-2">
                                     {/* Team 1 */}
-                                    <div className="col-span-4 flex flex-col items-center text-center gap-3 relative z-10 hover:-translate-y-1 transition-transform group/team">
+                                    <div className="col-span-4 flex flex-col items-center text-center gap-2 sm:gap-3 relative z-10 hover:-translate-y-1 transition-transform group/team">
                                       {renderTeamMedallion(team1, t1Token, t1Color, 'left')}
-                                      <div className="space-y-1.5 mt-2">
-                                        <div className={`font-display font-black text-xl ${team1 ? t1Color.text : 'text-blue-700 dark:text-sky-200'} leading-tight tracking-tight drop-shadow-sm`}>
+                                      <div className="space-y-1.5 mt-1 sm:mt-2 w-full">
+                                        <div className={`font-display font-black text-sm sm:text-lg md:text-xl ${team1 ? t1Color.text : 'text-blue-700 dark:text-sky-200'} leading-tight tracking-tight drop-shadow-sm break-words`}>
                                           {getTeamName(match.team1Id, match.team1Placeholder, false)}
                                         </div>
                                         {!team1 && (() => {
@@ -919,19 +951,19 @@ export default function App() {
                                             {new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Ho_Chi_Minh' }).format(date)}
                                           </div>
                                         )}
-                                        <div className="flex items-center gap-2 group/score">
+                                        <div className="flex items-center gap-1 sm:gap-2 group/score">
                                           <input 
                                             type="number" 
                                             value={match.score1 ?? ''}
-                                            className={`w-14 h-18 sm:w-16 sm:h-20 text-center bg-slate-100 dark:bg-[#0A0A0A] border-2 border-slate-200 dark:border-slate-800 rounded-2xl focus:border-[#8A1538] focus:ring-8 focus:ring-[#8A1538]/5 focus:bg-white dark:focus:bg-[#111] outline-none font-display font-black text-3xl sm:text-4xl text-slate-900 dark:text-white transition-all shadow-inner group-hover/score:shadow-lg`}
+                                            className={`w-10 h-12 sm:w-14 sm:h-16 md:w-16 md:h-20 text-center bg-slate-100 dark:bg-[#0A0A0A] border-2 border-slate-200 dark:border-slate-800 rounded-xl sm:rounded-2xl focus:border-[#8A1538] focus:ring-4 sm:focus:ring-8 focus:ring-[#8A1538]/5 focus:bg-white dark:focus:bg-[#111] outline-none font-display font-black text-xl sm:text-3xl md:text-4xl text-slate-900 dark:text-white transition-all shadow-inner group-hover/score:shadow-lg`}
                                             placeholder="-"
                                             onChange={(e) => handleScoreChange(match.id, e.target.value, match.score2?.toString() || '')}
                                           />
-                                          <span className="text-2xl text-slate-300 dark:text-slate-700 font-black animate-pulse">:</span>
+                                          <span className="text-base sm:text-2xl text-slate-300 dark:text-slate-700 font-black animate-pulse">:</span>
                                           <input 
                                             type="number" 
                                             value={match.score2 ?? ''}
-                                            className={`w-14 h-18 sm:w-16 sm:h-20 text-center bg-slate-100 dark:bg-[#0A0A0A] border-2 border-slate-200 dark:border-slate-800 rounded-2xl focus:border-[#8A1538] focus:ring-8 focus:ring-[#8A1538]/5 focus:bg-white dark:focus:bg-[#111] outline-none font-display font-black text-3xl sm:text-4xl text-slate-900 dark:text-white transition-all shadow-inner group-hover/score:shadow-lg`}
+                                            className={`w-10 h-12 sm:w-14 sm:h-16 md:w-16 md:h-20 text-center bg-slate-100 dark:bg-[#0A0A0A] border-2 border-slate-200 dark:border-slate-800 rounded-xl sm:rounded-2xl focus:border-[#8A1538] focus:ring-4 sm:focus:ring-8 focus:ring-[#8A1538]/5 focus:bg-white dark:focus:bg-[#111] outline-none font-display font-black text-xl sm:text-3xl md:text-4xl text-slate-900 dark:text-white transition-all shadow-inner group-hover/score:shadow-lg`}
                                             placeholder="-"
                                             onChange={(e) => handleScoreChange(match.id, match.score1?.toString() || '', e.target.value)}
                                           />
@@ -947,10 +979,10 @@ export default function App() {
                                     </div>
 
                                     {/* Team 2 */}
-                                    <div className="col-span-4 flex flex-col items-center text-center gap-3 relative z-10 hover:-translate-y-1 transition-transform group/team">
+                                    <div className="col-span-4 flex flex-col items-center text-center gap-2 sm:gap-3 relative z-10 hover:-translate-y-1 transition-transform group/team">
                                       {renderTeamMedallion(team2, t2Token, t2Color, 'right')}
-                                      <div className="space-y-1.5 mt-2">
-                                        <div className={`font-display font-black text-xl ${team2 ? t2Color.text : 'text-[#8A1538] dark:text-rose-200'} leading-tight tracking-tight drop-shadow-sm`}>
+                                      <div className="space-y-1.5 mt-1 sm:mt-2 w-full">
+                                        <div className={`font-display font-black text-sm sm:text-lg md:text-xl ${team2 ? t2Color.text : 'text-[#8A1538] dark:text-rose-200'} leading-tight tracking-tight drop-shadow-sm break-words`}>
                                           {getTeamName(match.team2Id, match.team2Placeholder, false)}
                                         </div>
                                         {!team2 && (() => {
@@ -1243,11 +1275,11 @@ export default function App() {
                                   ? 'text-sky-500/80 dark:text-sky-400/80'
                                   : 'text-[#8A1538]/70 dark:text-rose-400/80';
                                 return (
-                                  <div className="relative w-24 h-24">
+                                  <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24">
                                     <div className={`absolute inset-0 rounded-full bg-gradient-to-br ${ringGrad} opacity-90 shadow-[0_15px_30px_rgba(0,0,0,0.1)] dark:shadow-[0_15px_30px_rgba(0,0,0,0.4)] p-[3px] ring-4 ring-white dark:ring-[#141414]`}>
                                       <div className={`w-full h-full rounded-full bg-gradient-to-br ${innerGrad} flex flex-col items-center justify-center group-hover/team:rotate-[8deg] transition-transform duration-500`}>
-                                        <span className={`font-display font-black text-2xl leading-none ${tokenText} drop-shadow-sm`}>{token}</span>
-                                        <span className={`text-[8px] font-black uppercase tracking-[0.25em] ${tbdText} mt-0.5`}>TBD</span>
+                                        <span className={`font-display font-black text-lg sm:text-xl md:text-2xl leading-none ${tokenText} drop-shadow-sm`}>{token}</span>
+                                        <span className={`text-[7px] sm:text-[8px] font-black uppercase tracking-[0.25em] ${tbdText} mt-0.5`}>TBD</span>
                                       </div>
                                     </div>
                                   </div>
@@ -1268,11 +1300,11 @@ export default function App() {
                                   <div className={`absolute top-6 left-0 w-8 h-[2px] bg-gradient-to-r ${groupColor.from} ${groupColor.to} opacity-40`}></div>
                                   <div className={`absolute top-6 right-0 w-8 h-[2px] bg-gradient-to-r ${groupColor.from} ${groupColor.to} opacity-40`}></div>
 
-                                  <div className="relative p-6 sm:p-8">
-                                    <div className="flex items-center justify-between mb-8 gap-3">
-                                      <div className={`flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest ${groupColor.text} px-3 py-1.5 rounded-full border ${groupColor.border} bg-white dark:bg-[#141414] shadow-sm`}>
+                                  <div className="relative p-4 sm:p-6 md:p-8">
+                                    <div className="flex items-center justify-between mb-5 sm:mb-8 gap-2 sm:gap-3">
+                                      <div className={`flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest ${groupColor.text} px-2 sm:px-3 py-1.5 rounded-full border ${groupColor.border} bg-white dark:bg-[#141414] shadow-sm`}>
                                         <span className={`${groupColor.bg} w-5 h-5 rounded-full flex items-center justify-center -ml-1.5`}>M{match.id.replace('M', '')}</span>
-                                        <span className="truncate max-w-[120px]">{match.location}</span>
+                                        <span className="truncate max-w-[80px] sm:max-w-[120px]">{match.location}</span>
                                       </div>
                                       <div className="hidden sm:flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.25em] text-amber-600 dark:text-amber-400">
                                         <Trophy className="w-3 h-3" />
@@ -1285,10 +1317,10 @@ export default function App() {
 
                                     <div className="grid grid-cols-11 items-center gap-2">
                                       {/* Team 1 */}
-                                      <div className="col-span-4 flex flex-col items-center text-center gap-3 relative z-10 hover:-translate-y-1 transition-transform group/team">
+                                      <div className="col-span-4 flex flex-col items-center text-center gap-2 sm:gap-3 relative z-10 hover:-translate-y-1 transition-transform group/team">
                                         {renderTeamMedallion(team1, t1Token, t1Color, 'left')}
-                                        <div className="space-y-1.5 mt-2">
-                                          <div className={`font-display font-black text-xl ${team1 ? t1Color.text : 'text-blue-700 dark:text-sky-200'} leading-tight tracking-tight drop-shadow-sm`}>
+                                        <div className="space-y-1.5 mt-1 sm:mt-2 w-full">
+                                          <div className={`font-display font-black text-sm sm:text-lg md:text-xl ${team1 ? t1Color.text : 'text-blue-700 dark:text-sky-200'} leading-tight tracking-tight drop-shadow-sm break-words`}>
                                             {getTeamName(match.team1Id, match.team1Placeholder, false)}
                                           </div>
                                           {!team1 && (() => {
@@ -1364,19 +1396,19 @@ export default function App() {
                                               {new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Ho_Chi_Minh' }).format(date)}
                                             </div>
                                           )}
-                                          <div className="flex items-center gap-2 group/score">
+                                          <div className="flex items-center gap-1 sm:gap-2 group/score">
                                             <input
                                               type="number"
                                               value={match.score1 ?? ''}
-                                              className={`w-14 h-18 sm:w-16 sm:h-20 text-center bg-slate-100 dark:bg-[#0A0A0A] border-2 border-slate-200 dark:border-slate-800 rounded-2xl focus:border-[#8A1538] focus:ring-8 focus:ring-[#8A1538]/5 focus:bg-white dark:focus:bg-[#111] outline-none font-display font-black text-3xl sm:text-4xl text-slate-900 dark:text-white transition-all shadow-inner group-hover/score:shadow-lg`}
+                                              className={`w-10 h-12 sm:w-14 sm:h-16 md:w-16 md:h-20 text-center bg-slate-100 dark:bg-[#0A0A0A] border-2 border-slate-200 dark:border-slate-800 rounded-xl sm:rounded-2xl focus:border-[#8A1538] focus:ring-4 sm:focus:ring-8 focus:ring-[#8A1538]/5 focus:bg-white dark:focus:bg-[#111] outline-none font-display font-black text-xl sm:text-3xl md:text-4xl text-slate-900 dark:text-white transition-all shadow-inner group-hover/score:shadow-lg`}
                                               placeholder="-"
                                               onChange={(e) => handleScoreChange(match.id, e.target.value, match.score2?.toString() || '')}
                                             />
-                                            <span className="text-2xl text-slate-300 dark:text-slate-700 font-black animate-pulse">:</span>
+                                            <span className="text-base sm:text-2xl text-slate-300 dark:text-slate-700 font-black animate-pulse">:</span>
                                             <input
                                               type="number"
                                               value={match.score2 ?? ''}
-                                              className={`w-14 h-18 sm:w-16 sm:h-20 text-center bg-slate-100 dark:bg-[#0A0A0A] border-2 border-slate-200 dark:border-slate-800 rounded-2xl focus:border-[#8A1538] focus:ring-8 focus:ring-[#8A1538]/5 focus:bg-white dark:focus:bg-[#111] outline-none font-display font-black text-3xl sm:text-4xl text-slate-900 dark:text-white transition-all shadow-inner group-hover/score:shadow-lg`}
+                                              className={`w-10 h-12 sm:w-14 sm:h-16 md:w-16 md:h-20 text-center bg-slate-100 dark:bg-[#0A0A0A] border-2 border-slate-200 dark:border-slate-800 rounded-xl sm:rounded-2xl focus:border-[#8A1538] focus:ring-4 sm:focus:ring-8 focus:ring-[#8A1538]/5 focus:bg-white dark:focus:bg-[#111] outline-none font-display font-black text-xl sm:text-3xl md:text-4xl text-slate-900 dark:text-white transition-all shadow-inner group-hover/score:shadow-lg`}
                                               placeholder="-"
                                               onChange={(e) => handleScoreChange(match.id, match.score1?.toString() || '', e.target.value)}
                                             />
@@ -1390,10 +1422,10 @@ export default function App() {
                                       </div>
 
                                       {/* Team 2 */}
-                                      <div className="col-span-4 flex flex-col items-center text-center gap-3 relative z-10 hover:-translate-y-1 transition-transform group/team">
+                                      <div className="col-span-4 flex flex-col items-center text-center gap-2 sm:gap-3 relative z-10 hover:-translate-y-1 transition-transform group/team">
                                         {renderTeamMedallion(team2, t2Token, t2Color, 'right')}
-                                        <div className="space-y-1.5 mt-2">
-                                          <div className={`font-display font-black text-xl ${team2 ? t2Color.text : 'text-[#8A1538] dark:text-rose-200'} leading-tight tracking-tight drop-shadow-sm`}>
+                                        <div className="space-y-1.5 mt-1 sm:mt-2 w-full">
+                                          <div className={`font-display font-black text-sm sm:text-lg md:text-xl ${team2 ? t2Color.text : 'text-[#8A1538] dark:text-rose-200'} leading-tight tracking-tight drop-shadow-sm break-words`}>
                                             {getTeamName(match.team2Id, match.team2Placeholder, false)}
                                           </div>
                                           {!team2 && (() => {
@@ -1595,7 +1627,7 @@ export default function App() {
             )}
 
             {activeTab === 'standings' && (
-              <div className="space-y-12">
+              <div className="space-y-8 sm:space-y-12">
                 <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
@@ -1696,46 +1728,101 @@ export default function App() {
               </div>
             )}
 
-            {activeTab === 'players' && (
-              <div className="space-y-12">
-                <div className="flex flex-col md:flex-row md:items-start justify-between gap-8">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                       <span className="w-8 h-1 bg-[#8A1538] rounded-full"></span>
-                       <span className="text-[10px] font-black uppercase text-[#8A1538] tracking-[0.3em]">Player Management</span>
+            {activeTab === 'players' && (() => {
+              const playerCount = playersInput.split('\n').filter(p => p.trim()).length;
+              const finishedMatches = matches.filter(m => m.status === 'finished').length;
+              const totalMatches = matches.length;
+              const groupsCount = Object.keys(groupAssignments).length;
+              const totalPot = (() => {
+                let pot = 0;
+                matches.filter(m => m.status === 'finished').forEach(m => {
+                  const a = groupAssignments[m.group];
+                  if (!a) return;
+                  const t1Won = (m.score1 || 0) > (m.score2 || 0);
+                  const t2Won = (m.score2 || 0) > (m.score1 || 0);
+                  const isDraw = !t1Won && !t2Won;
+                  const v = t1Won || t2Won ? penalties.win + penalties.loss : penalties.draw * 2;
+                  pot += v * Math.min(a.group1.length, a.group2.length);
+                  void isDraw;
+                });
+                return pot;
+              })();
+              const avatarColors = ['from-rose-400 to-rose-600','from-amber-400 to-amber-600','from-emerald-400 to-emerald-600','from-sky-400 to-sky-600','from-violet-400 to-violet-600','from-pink-400 to-pink-600','from-orange-400 to-orange-600','from-teal-400 to-teal-600','from-indigo-400 to-indigo-600','from-fuchsia-400 to-fuchsia-600','from-lime-400 to-lime-600','from-cyan-400 to-cyan-600'];
+              const getAvatarColor = (name: string) => avatarColors[Math.abs(name.split('').reduce((a, c) => a + c.charCodeAt(0), 0)) % avatarColors.length];
+              const playerList = playersInput.split('\n').map(p => p.trim()).filter(Boolean);
+              return (
+              <div className="space-y-10">
+                {/* Hero Header */}
+                <div className="relative bg-gradient-to-br from-white via-rose-50/30 to-amber-50/20 dark:from-[#141414] dark:via-[#1A0F12] dark:to-[#141414] rounded-3xl sm:rounded-[2.5rem] p-6 sm:p-8 lg:p-12 border border-slate-100 dark:border-slate-800/60 shadow-[0_30px_60px_rgba(0,0,0,0.04)] overflow-hidden">
+                  <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-[#8A1538]/8 to-transparent rounded-full -mr-32 -mt-32 blur-3xl"></div>
+                  <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-gradient-to-br from-amber-300/10 to-transparent rounded-full -mb-32 blur-3xl"></div>
+
+                  <div className="relative flex flex-col lg:flex-row lg:items-end justify-between gap-8">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <span className="w-8 h-1 bg-[#8A1538] rounded-full"></span>
+                        <span className="text-[10px] font-black uppercase text-[#8A1538] tracking-[0.3em]">Player Management</span>
+                      </div>
+                      <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 dark:text-white tracking-tight leading-[0.9]">Người Chơi</h1>
+                      <p className="text-slate-500 dark:text-slate-400 font-medium text-lg max-w-xl">Phân chia anh tài theo từng bảng đấu cạnh tranh</p>
                     </div>
-                    <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 dark:text-white tracking-tight leading-[0.9]">Người Chơi</h1>
-                    <p className="text-slate-500 dark:text-slate-400 font-medium text-lg max-w-xl">Phân chia anh tài theo từng bảng đấu cạnh tranh</p>
+
+                    <button
+                      onClick={handleRandomizeAssignments}
+                      className="group relative bg-[#8A1538] hover:bg-[#A61A45] text-white px-6 sm:px-8 py-3 sm:py-4 rounded-[2rem] font-black uppercase text-[10px] sm:text-xs tracking-[0.2em] transition-all flex items-center justify-center gap-2 sm:gap-3 overflow-hidden shadow-[0_15px_35px_rgba(138,21,56,0.3)] hover:scale-105 active:scale-95 whitespace-nowrap w-full lg:w-auto"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      <Shuffle className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" />
+                      <span>Chia Nhóm Ngẫu Nhiên</span>
+                    </button>
                   </div>
 
-                  <button
-                    onClick={handleRandomizeAssignments}
-                    className="group relative bg-[#8A1538] hover:bg-[#A61A45] text-white px-10 py-5 rounded-[2rem] font-black uppercase text-xs tracking-[0.2em] transition-all flex items-center gap-4 overflow-hidden shadow-[0_15px_35px_rgba(138,21,56,0.3)] hover:scale-105 active:scale-95"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    <Shuffle className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" />
-                    <span>Chia Nhóm Ngẫu Nhiên</span>
-                  </button>
+                  {/* Stats Strip */}
+                  <div className="relative grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-10">
+                    {[
+                      { label: 'Tuyển thủ', value: playerCount, sub: 'Đang tham gia', icon: Users, grad: 'from-emerald-500 to-teal-600', text: 'text-emerald-600 dark:text-emerald-400' },
+                      { label: 'Bảng đã chia', value: groupsCount, sub: `/ ${groupsList.length} bảng`, icon: Shuffle, grad: 'from-[#8A1538] to-[#D6284B]', text: 'text-[#8A1538] dark:text-rose-400' },
+                      { label: 'Trận đã đá', value: finishedMatches, sub: `/ ${totalMatches} trận`, icon: Calendar, grad: 'from-blue-500 to-sky-600', text: 'text-blue-600 dark:text-sky-400' },
+                      { label: 'Tổng quỹ cược', value: `${totalPot}K`, sub: 'Đã giao dịch', icon: Trophy, grad: 'from-amber-500 to-orange-600', text: 'text-amber-600 dark:text-amber-400' },
+                    ].map(s => (
+                      <div key={s.label} className="relative bg-white/80 dark:bg-[#0F0F0F]/80 backdrop-blur-sm border border-slate-100 dark:border-slate-800/60 rounded-2xl p-4 sm:p-5 hover:shadow-lg hover:-translate-y-0.5 transition-all group/stat overflow-hidden">
+                        <div className={`absolute -top-6 -right-6 w-20 h-20 bg-gradient-to-br ${s.grad} opacity-5 rounded-full blur-xl group-hover/stat:opacity-10 transition-opacity`}></div>
+                        <div className="relative flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-1">{s.label}</div>
+                            <div className={`font-display text-2xl sm:text-3xl font-black ${s.text} tracking-tight`}>{s.value}</div>
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mt-0.5">{s.sub}</div>
+                          </div>
+                          <div className={`shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br ${s.grad} flex items-center justify-center shadow-md`}>
+                            <s.icon className="w-4 h-4 text-white" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-10">
                   <div className="lg:col-span-1 space-y-10">
-                    <section className="bg-white dark:bg-[#121212] rounded-[2.5rem] p-10 border border-slate-100 dark:border-slate-800/60 shadow-[0_20px_50px_rgba(0,0,0,0.02)] relative overflow-hidden group">
+                    <section className="bg-white dark:bg-[#121212] rounded-3xl sm:rounded-[2.5rem] p-5 sm:p-8 border border-slate-100 dark:border-slate-800/60 shadow-[0_20px_50px_rgba(0,0,0,0.02)] relative overflow-hidden group">
                       <div className="absolute top-0 right-0 w-24 h-24 bg-[#8A1538]/5 rounded-bl-[4rem] -mr-8 -mt-8 transition-all group-hover:bg-[#8A1538]/10 group-hover:w-28 group-hover:h-28"></div>
                       <h2 className="font-display text-2xl font-black text-slate-900 dark:text-white mb-2 italic">Cài đặt cược</h2>
-                      <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-[0.2em] mb-10 block">
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-[0.2em] mb-8 block">
                         Số tiền áp dụng cho mỗi trận đấu
                       </p>
                       
-                      <div className="space-y-6">
+                      <div className="space-y-5">
                         {[
-                          { key: 'win', label: 'Trận Thắng', color: 'text-emerald-500' },
-                          { key: 'draw', label: 'Trận Hòa', color: 'text-blue-500' },
-                          { key: 'loss', label: 'Trận Thua', color: 'text-[#8A1538]' },
+                          { key: 'win', label: 'Trận Thắng', color: 'text-emerald-500', dot: 'bg-emerald-500', ring: 'focus:ring-emerald-500/10 focus:border-emerald-500' },
+                          { key: 'draw', label: 'Trận Hòa', color: 'text-amber-500', dot: 'bg-amber-500', ring: 'focus:ring-amber-500/10 focus:border-amber-500' },
+                          { key: 'loss', label: 'Trận Thua', color: 'text-[#8A1538]', dot: 'bg-[#8A1538]', ring: 'focus:ring-[#8A1538]/10 focus:border-[#8A1538]' },
                         ].map((field) => (
                           <div key={field.key} className="group/item">
                             <div className="flex items-center justify-between mb-2 px-1">
-                              <span className="text-[11px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider transition-colors group-hover/item:text-slate-900 dark:group-hover/item:text-white">{field.label}</span>
+                              <div className="flex items-center gap-2">
+                                <span className={`w-1.5 h-1.5 rounded-full ${field.dot}`}></span>
+                                <span className="text-[11px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider transition-colors group-hover/item:text-slate-900 dark:group-hover/item:text-white">{field.label}</span>
+                              </div>
                               <span className={`text-[10px] font-black ${field.color} opacity-60`}>NGHÌN ĐỒNG (K)</span>
                             </div>
                             <div className="relative">
@@ -1743,36 +1830,57 @@ export default function App() {
                                 type="number" 
                                 value={(penalties as any)[field.key]}
                                 onChange={e => setPenalties({...penalties, [field.key]: parseInt(e.target.value) || 0})}
-                                className="w-full bg-slate-50 dark:bg-[#0A0A0A] border-2 border-slate-100 dark:border-slate-800 rounded-2xl px-6 py-4 text-left font-display font-black text-xl text-slate-900 dark:text-white focus:border-[#8A1538] focus:ring-8 focus:ring-[#8A1538]/5 outline-none transition-all"
+                                className={`w-full bg-slate-50 dark:bg-[#0A0A0A] border-2 border-slate-100 dark:border-slate-800 rounded-2xl pl-6 pr-14 py-4 text-left font-display font-black text-xl text-slate-900 dark:text-white focus:ring-8 outline-none transition-all ${field.ring}`}
                               />
+                              <span className={`absolute right-5 top-1/2 -translate-y-1/2 text-xs font-black ${field.color} uppercase tracking-wider pointer-events-none`}>K</span>
                             </div>
                           </div>
                         ))}
                       </div>
                     </section>
 
-                    <section className="bg-white dark:bg-[#121212] rounded-[2.5rem] p-10 border border-slate-100 dark:border-slate-800/60 shadow-[0_20px_50px_rgba(0,0,0,0.02)] relative overflow-hidden group flex flex-col">
+                    <section className="bg-white dark:bg-[#121212] rounded-3xl sm:rounded-[2.5rem] p-5 sm:p-8 border border-slate-100 dark:border-slate-800/60 shadow-[0_20px_50px_rgba(0,0,0,0.02)] relative overflow-hidden group flex flex-col">
                       <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-bl-[4rem] -mr-8 -mt-8 transition-all group-hover:bg-emerald-500/10 group-hover:w-28 group-hover:h-28"></div>
-                      <h2 className="font-display text-2xl font-black text-slate-900 dark:text-white mb-2 italic">Danh sách tuyển thủ</h2>
-                      <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-[0.2em] mb-10 leading-relaxed">
+                      <div className="flex items-start justify-between mb-2">
+                        <h2 className="font-display text-2xl font-black text-slate-900 dark:text-white italic">Danh sách tuyển thủ</h2>
+                        <div className="shrink-0 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+                          <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{playerList.length} người</span>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-[0.2em] mb-6 leading-relaxed">
                         Mỗi dòng một người • Chia đều tự động
                       </p>
+
+                      {/* Avatar preview chips */}
+                      {playerList.length > 0 && (
+                        <div className="mb-5 flex flex-wrap gap-2 pb-5 border-b border-dashed border-slate-200 dark:border-slate-800">
+                          {playerList.slice(0, 16).map((name, i) => (
+                            <div key={`${name}-${i}`} className="group/chip flex items-center gap-1.5 bg-slate-50 dark:bg-[#0A0A0A] border border-slate-100 dark:border-slate-800 rounded-full pr-3 pl-1 py-1 hover:border-emerald-500/30 hover:bg-white dark:hover:bg-[#0F0F0F] transition-all">
+                              <div className={`w-6 h-6 rounded-full bg-gradient-to-br ${getAvatarColor(name)} flex items-center justify-center text-white text-[10px] font-black shadow-sm`}>
+                                {name.charAt(0).toUpperCase()}
+                              </div>
+                              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200">{name}</span>
+                            </div>
+                          ))}
+                          {playerList.length > 16 && (
+                            <div className="flex items-center px-3 py-1 rounded-full bg-slate-100 dark:bg-[#0A0A0A] text-[10px] font-black text-slate-500 uppercase tracking-wider">+{playerList.length - 16}</div>
+                          )}
+                        </div>
+                      )}
+
                       <div className="relative flex-1">
                         <textarea
-                          className="w-full h-[320px] text-sm font-medium p-8 bg-slate-50 dark:bg-[#0A0A0A] border-2 border-slate-100 dark:border-slate-800 rounded-3xl focus:bg-white dark:focus:bg-[#0A0A0A] focus:border-emerald-500/50 focus:ring-8 focus:ring-emerald-500/5 outline-none resize-none transition-all placeholder:text-slate-300 dark:placeholder:text-slate-700"
+                          className="w-full h-[260px] text-sm font-medium p-6 bg-slate-50 dark:bg-[#0A0A0A] border-2 border-slate-100 dark:border-slate-800 rounded-3xl focus:bg-white dark:focus:bg-[#0A0A0A] focus:border-emerald-500/50 focus:ring-8 focus:ring-emerald-500/5 outline-none resize-none transition-all placeholder:text-slate-300 dark:placeholder:text-slate-700"
                           placeholder="Nguyễn Văn A&#10;Trần Thị B&#10;..."
                           value={playersInput}
                           onChange={(e) => setPlayersInput(e.target.value)}
                         />
-                        <div className="absolute bottom-4 right-4 bg-emerald-500/10 px-3 py-1 rounded-full">
-                           <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">{playersInput.split('\n').filter(p => p.trim()).length} NGƯỜI</span>
-                        </div>
                       </div>
                     </section>
                   </div>
                   
                   <div className="lg:col-span-2">
-                    <div className="bg-white dark:bg-[#121212] rounded-[2.5rem] p-10 border border-slate-100 dark:border-slate-800/60 shadow-[0_20px_50px_rgba(0,0,0,0.04)] min-h-full">
+                    <div className="bg-white dark:bg-[#121212] rounded-3xl sm:rounded-[2.5rem] p-4 sm:p-6 md:p-10 border border-slate-100 dark:border-slate-800/60 shadow-[0_20px_50px_rgba(0,0,0,0.04)] min-h-full">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-12">
                         <div>
                           <h3 className="font-display text-3xl font-black text-slate-900 dark:text-white italic tracking-tight">Kết Quả Phân Nhóm</h3>
@@ -1858,24 +1966,50 @@ export default function App() {
                                   });
                                 });
 
-                                return Object.entries(stats).sort((a,b) => b[1].amount - a[1].amount).map(([name, s]) => {
+                                const sorted = Object.entries(stats).sort((a,b) => b[1].amount - a[1].amount);
+                                const maxAbs = Math.max(1, ...sorted.map(([, s]) => Math.abs(s.amount)));
+                                const podiumStyle = [
+                                  { ring: 'ring-2 ring-amber-400/60', badge: 'bg-gradient-to-br from-amber-300 to-amber-500 text-amber-950', glow: 'shadow-[0_0_30px_rgba(251,191,36,0.25)]', label: '🥇' },
+                                  { ring: 'ring-2 ring-slate-300/40', badge: 'bg-gradient-to-br from-slate-200 to-slate-400 text-slate-800', glow: 'shadow-[0_0_25px_rgba(203,213,225,0.15)]', label: '🥈' },
+                                  { ring: 'ring-2 ring-orange-400/40', badge: 'bg-gradient-to-br from-orange-300 to-orange-500 text-orange-950', glow: 'shadow-[0_0_25px_rgba(249,115,22,0.2)]', label: '🥉' },
+                                ];
+                                return sorted.map(([name, s], idx) => {
                                   const amount = s.amount;
                                   const total = s.win + s.draw + s.loss;
+                                  const podium = idx < 3 && amount > 0 ? podiumStyle[idx] : null;
+                                  const barPct = Math.min(100, Math.abs(amount) / maxAbs * 100);
                                   return (
                                   <motion.div 
                                     whileHover={{ y: -4 }}
                                     key={name} 
-                                    className="bg-white/5 backdrop-blur-sm border border-white/10 p-5 rounded-3xl transition-all hover:bg-white/10 group/stat"
+                                    className={`relative bg-white/5 backdrop-blur-sm border border-white/10 p-5 rounded-3xl transition-all hover:bg-white/10 group/stat ${podium ? `${podium.ring} ${podium.glow}` : ''}`}
                                   >
+                                    {podium && (
+                                      <div className={`absolute -top-2 -right-2 w-8 h-8 rounded-full ${podium.badge} flex items-center justify-center text-sm font-black shadow-lg ring-2 ring-slate-900`}>
+                                        {podium.label}
+                                      </div>
+                                    )}
                                     <div className="flex items-center justify-between mb-1">
-                                      <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest transition-colors group-hover/stat:text-slate-300">{name}</p>
-                                      <span className="text-[9px] font-bold text-slate-600 uppercase tracking-wider">{total} tr</span>
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <div className={`w-6 h-6 rounded-full bg-gradient-to-br ${getAvatarColor(name)} flex items-center justify-center text-white text-[10px] font-black shadow-sm shrink-0`}>
+                                          {name.charAt(0).toUpperCase()}
+                                        </div>
+                                        <p className="text-[10px] font-black uppercase text-slate-300 tracking-widest truncate">{name}</p>
+                                      </div>
+                                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider shrink-0">{total} tr</span>
                                     </div>
-                                    <div className="flex items-baseline gap-1">
+                                    <div className="flex items-baseline gap-1 mt-2">
                                        <span className={`text-2xl font-display font-black tracking-tight ${amount > 0 ? 'text-emerald-400' : amount < 0 ? 'text-[#D6284B]' : 'text-slate-400'}`}>
                                          {amount > 0 ? `+${amount}` : amount}
                                        </span>
                                        <span className="text-[10px] font-bold text-slate-600 uppercase">k</span>
+                                    </div>
+                                    {/* Progress bar */}
+                                    <div className="mt-2 h-1 bg-white/5 rounded-full overflow-hidden">
+                                      <div
+                                        className={`h-full rounded-full transition-all duration-500 ${amount > 0 ? 'bg-gradient-to-r from-emerald-400 to-emerald-600' : amount < 0 ? 'bg-gradient-to-r from-rose-500 to-[#8A1538]' : 'bg-slate-700'}`}
+                                        style={{ width: `${barPct}%` }}
+                                      ></div>
                                     </div>
                                     <div className="mt-3 pt-3 border-t border-white/5 grid grid-cols-3 gap-1 text-center">
                                       <div className="flex flex-col">
@@ -1899,9 +2033,15 @@ export default function App() {
                           </div>
 
                           <div className="flex items-center justify-between gap-4 pt-2">
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-3 flex-wrap">
                               <div className="h-[1px] w-8 bg-slate-200 dark:bg-slate-700"></div>
                               <span className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 dark:text-slate-500">Chi tiết phân bảng</span>
+                              {showGroupBreakdown && (
+                                <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-white/5 px-2 py-1 rounded-full border border-slate-200 dark:border-slate-700">
+                                  <ArrowLeftRight className="w-2.5 h-2.5" />
+                                  Click vào tên để chuyển nhóm
+                                </span>
+                              )}
                             </div>
                             <button
                               onClick={() => setShowGroupBreakdown(v => !v)}
@@ -1925,41 +2065,72 @@ export default function App() {
                           {groupsList.map(group => {
                             const data = groupAssignments[group];
                             if (!data) return null;
+                            const gc = getGroupColor(group);
                             return (
                               <motion.div 
                                 key={group} 
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className="border border-slate-100 dark:border-slate-800 rounded-3xl overflow-hidden bg-slate-50/50 dark:bg-[#0F0F0F]"
+                                className="relative border border-slate-100 dark:border-slate-800 rounded-3xl overflow-hidden bg-white dark:bg-[#0F0F0F] shadow-sm hover:shadow-lg transition-all"
                               >
-                                <div className="bg-[#1A1A1A] px-6 py-3 font-display font-bold text-white text-sm uppercase tracking-widest flex justify-between items-center">
-                                  <span>Bảng {group}</span>
-                                  <div className="w-2 h-2 rounded-full bg-[#8A1538] animate-pulse"></div>
+                                <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${gc.from} ${gc.to}`}></div>
+                                <div className="px-6 py-3.5 font-display font-bold text-sm uppercase tracking-widest flex justify-between items-center border-b border-slate-100 dark:border-slate-800">
+                                  <div className="flex items-center gap-2.5">
+                                    <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${gc.from} ${gc.to} flex items-center justify-center text-white font-black text-xs shadow-md`}>{group}</div>
+                                    <span className="text-slate-700 dark:text-slate-200">Bảng {group}</span>
+                                  </div>
+                                  <div className={`text-[9px] font-black uppercase tracking-[0.2em] ${gc.text} ${gc.bg} px-2 py-0.5 rounded-full`}>{data.group1.length + data.group2.length} người</div>
                                 </div>
-                                <div className="grid grid-cols-2">
-                                  <div className="p-5 border-r border-slate-100 dark:border-slate-800 space-y-4">
-                                    <div className="text-[9px] font-black uppercase tracking-[0.2em] text-blue-600 flex justify-between">
-                                      <span>Nhóm 1</span>
-                                      <span className="opacity-40">{data.group1.length} n</span>
+                                  <div className="relative grid grid-cols-2">
+                                    <div className="absolute left-1/2 top-3 bottom-3 -translate-x-1/2 z-10 hidden sm:flex flex-col items-center justify-center">
+                                      <div className="w-px h-full bg-gradient-to-b from-transparent via-slate-200 dark:via-slate-700 to-transparent"></div>
+                                      <div className="absolute bg-white dark:bg-[#0F0F0F] border border-slate-200 dark:border-slate-700 w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider shadow-sm">VS</div>
                                     </div>
-                                    <div className="flex flex-wrap gap-2">
-                                      {data.group1.map(p => (
-                                        <span key={p} className="text-[10px] font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-[#141414] px-2 py-1 rounded-lg border border-slate-100 dark:border-slate-800 shadow-sm">{p}</span>
-                                      ))}
+                                    <div className="p-5 space-y-3">
+                                      <div className="text-[9px] font-black uppercase tracking-[0.2em] text-blue-600 dark:text-sky-400 flex items-center gap-1.5">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                                        <span>Nhóm 1</span>
+                                        <span className="ml-auto opacity-40 normal-case tracking-normal">{data.group1.length}</span>
+                                      </div>
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {data.group1.map(p => (
+                                          <button
+                                            type="button"
+                                            key={p}
+                                            onClick={() => handleMovePlayerBetweenGroups(group, p, 'group1')}
+                                            title={`Chuyển ${p} sang Nhóm 2`}
+                                            className="group/chip relative inline-flex items-center gap-1 text-[10px] font-bold text-slate-700 dark:text-slate-200 bg-blue-50 dark:bg-sky-500/10 hover:bg-blue-100 dark:hover:bg-sky-500/20 px-2 py-1 pr-6 rounded-lg border border-blue-100 dark:border-sky-500/20 hover:border-blue-300 dark:hover:border-sky-400/40 transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                                          >
+                                            <span className={`w-3.5 h-3.5 rounded-full bg-gradient-to-br ${getAvatarColor(p)} text-white text-[8px] font-black flex items-center justify-center`}>{p.charAt(0).toUpperCase()}</span>
+                                            {p}
+                                            <ArrowLeftRight className="absolute right-1.5 w-2.5 h-2.5 text-blue-500 opacity-0 group-hover/chip:opacity-100 transition-opacity" />
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                    <div className="p-5 space-y-3 border-l border-slate-100 dark:border-slate-800">
+                                      <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#8A1538] dark:text-rose-400 flex items-center gap-1.5">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-[#8A1538]"></span>
+                                        <span>Nhóm 2</span>
+                                        <span className="ml-auto opacity-40 normal-case tracking-normal">{data.group2.length}</span>
+                                      </div>
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {data.group2.map(p => (
+                                          <button
+                                            type="button"
+                                            key={p}
+                                            onClick={() => handleMovePlayerBetweenGroups(group, p, 'group2')}
+                                            title={`Chuyển ${p} sang Nhóm 1`}
+                                            className="group/chip relative inline-flex items-center gap-1 text-[10px] font-bold text-slate-700 dark:text-slate-200 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 px-2 py-1 pr-6 rounded-lg border border-rose-100 dark:border-rose-500/20 hover:border-rose-300 dark:hover:border-rose-400/40 transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#8A1538]/30"
+                                          >
+                                            <span className={`w-3.5 h-3.5 rounded-full bg-gradient-to-br ${getAvatarColor(p)} text-white text-[8px] font-black flex items-center justify-center`}>{p.charAt(0).toUpperCase()}</span>
+                                            {p}
+                                            <ArrowLeftRight className="absolute right-1.5 w-2.5 h-2.5 text-[#8A1538] opacity-0 group-hover/chip:opacity-100 transition-opacity" />
+                                          </button>
+                                        ))}
+                                      </div>
                                     </div>
                                   </div>
-                                  <div className="p-5 space-y-4">
-                                    <div className="text-[9px] font-black uppercase tracking-[0.2em] text-red-600 flex justify-between">
-                                      <span>Nhóm 2</span>
-                                      <span className="opacity-40">{data.group2.length} n</span>
-                                    </div>
-                                    <div className="flex flex-wrap gap-2">
-                                      {data.group2.map(p => (
-                                        <span key={p} className="text-[10px] font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-[#141414] px-2 py-1 rounded-lg border border-slate-100 dark:border-slate-800 shadow-sm">{p}</span>
-                                      ))}
-                                    </div>
-                                  </div>
-                                </div>
                               </motion.div>
                             );
                           })}
@@ -1982,7 +2153,8 @@ export default function App() {
                   </div>
                 </div>
               </div>
-            )}
+              );
+            })()}
           </motion.div>
         </AnimatePresence>
       </main>
