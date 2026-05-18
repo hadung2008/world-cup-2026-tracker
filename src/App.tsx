@@ -1997,7 +1997,7 @@ export default function App() {
           </div>
 
           <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] text-center">
-            © 2026 · Developed with ❤️ for Sống Khỏe Group
+            © 2026 · Developed with ❤️ for <span className="font-extrabold text-emerald-500 dark:text-emerald-400">Sống Khỏe</span> Group
           </div>
         </div>
       </footer>
