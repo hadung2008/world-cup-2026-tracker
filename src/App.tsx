@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Calendar, Trophy, Save, Edit3, Users, Shuffle, ChevronLeft, ChevronRight, Home, Newspaper, Search, Filter, Sun, Moon } from 'lucide-react';
+import { Calendar, Trophy, Save, Edit3, Users, Shuffle, ChevronLeft, ChevronRight, Home, Newspaper, Search, Filter, Sun, Moon, AlertTriangle, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { initialTeams, initialMatches } from './data';
 import { Match, Team, TeamStats, GroupAssignmentHistory, MatchAssignment } from './types';
@@ -60,6 +60,7 @@ export default function App() {
   const [teams] = useState<Team[]>(initialTeams);
   const [selectedGroup, setSelectedGroup] = useState<string>('A');
   const [matchView, setMatchView] = useState<'by_date' | 'by_group' | 'knockout'>('by_group');
+  const [selectedKnockoutStage, setSelectedKnockoutStage] = useState<KnockoutStage>('Vòng 1/16');
   const [playersInput, setPlayersInput] = useState<string>('');
   const [players, setPlayers] = useState<string[]>([]);
   const [groupAssignments, setGroupAssignments] = useState<Record<string, { group1: string[], group2: string[] }>>({});
@@ -72,6 +73,8 @@ export default function App() {
 
   const [assignmentHistories, setAssignmentHistories] = useState<GroupAssignmentHistory[]>([]);
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [newSaveName, setNewSaveName] = useState('');
   const [showGroupBreakdown, setShowGroupBreakdown] = useState(false);
 
@@ -171,16 +174,19 @@ export default function App() {
   }, [matches, isLoaded]);
 
   const handleResetData = () => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa toàn bộ dữ liệu tỉ số và phân nhóm để cập nhật lại lịch thi đấu mới nhất từ hệ thống?')) {
-      localStorage.removeItem('wc2026_matches');
-      localStorage.removeItem('wc2026_group_assignments');
-      localStorage.removeItem('wc2026_match_assignments');
-      // Chúng ta giữ lại danh sách tên người chơi (wc2026_players) để người dùng không phải nhập lại
-      if (supabaseEnabled) {
-        clearSnapshot().finally(() => window.location.reload());
-      } else {
-        window.location.reload();
-      }
+    setShowResetModal(true);
+  };
+
+  const performReset = () => {
+    setResetting(true);
+    localStorage.removeItem('wc2026_matches');
+    localStorage.removeItem('wc2026_group_assignments');
+    localStorage.removeItem('wc2026_match_assignments');
+    // Giữ lại danh sách tên người chơi (wc2026_players)
+    if (supabaseEnabled) {
+      clearSnapshot().finally(() => window.location.reload());
+    } else {
+      window.location.reload();
     }
   };
 
@@ -505,13 +511,40 @@ export default function App() {
       <header className="bg-white/80 dark:bg-[#141414]/80 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-8 lg:gap-12">
-            <div className="flex items-center gap-3.5 cursor-pointer group" onClick={() => setActiveTab('matches')}>
-              <div className="bg-[#8A1538] p-2.5 rounded-xl rotate-3 shadow-[0_8px_20px_rgba(138,21,56,0.3)] group-hover:rotate-0 group-hover:scale-110 transition-all duration-300">
-                <Trophy className="w-7 h-7 text-white" />
+            <div
+              className="flex items-center gap-3.5 cursor-pointer group select-none"
+              onClick={() => setActiveTab('matches')}
+            >
+              <div className="relative">
+                {/* Soft glow */}
+                <div className="absolute -inset-1.5 rounded-2xl bg-gradient-to-br from-[#8A1538] via-[#B91C4B] to-[#F59E0B] opacity-0 group-hover:opacity-40 blur-xl transition-opacity duration-500"></div>
+                {/* Logo plaque */}
+                <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-[#A41A45] via-[#8A1538] to-[#5C0E25] p-[1.5px] shadow-[0_10px_30px_-8px_rgba(138,21,56,0.55)] group-hover:shadow-[0_14px_36px_-6px_rgba(138,21,56,0.7)] rotate-3 group-hover:rotate-0 transition-all duration-500">
+                  <div className="relative w-full h-full rounded-[14px] bg-gradient-to-br from-[#8A1538] to-[#6B0F2A] flex items-center justify-center overflow-hidden">
+                    {/* Subtle inner highlight */}
+                    <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/15 to-transparent"></div>
+                    {/* Diagonal sheen on hover */}
+                    <div className="absolute -inset-y-2 -left-10 w-8 bg-white/20 blur-md skew-x-[-20deg] -translate-x-full group-hover:translate-x-[140px] transition-transform duration-[900ms] ease-out"></div>
+                    <Trophy className="relative w-6 h-6 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.35)]" strokeWidth={2.25} />
+                  </div>
+                </div>
+                {/* Gold accent dot */}
+                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-gradient-to-br from-amber-300 to-amber-500 ring-2 ring-white dark:ring-[#141414] shadow-md"></div>
               </div>
               <div className="leading-tight hidden sm:block">
-                <div className="font-display font-black text-xl tracking-tight uppercase text-slate-900 dark:text-white">World Cup 2026</div>
-                <div className="text-[9px] text-[#8A1538] uppercase font-black tracking-[0.25em] opacity-80">Tournament Predictor</div>
+                <div className="flex items-center gap-2">
+                  <div className="font-display font-black text-[1.35rem] tracking-tight uppercase bg-gradient-to-br from-slate-900 via-slate-800 to-[#3a0a17] dark:from-white dark:via-slate-100 dark:to-rose-100 bg-clip-text text-transparent">
+                    World Cup
+                  </div>
+                  <div className="font-display font-black text-[1.35rem] tracking-tight bg-gradient-to-br from-[#8A1538] via-[#B91C4B] to-amber-500 bg-clip-text text-transparent drop-shadow-sm">
+                    2026
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="h-px w-4 bg-gradient-to-r from-transparent via-[#8A1538]/60 to-transparent"></span>
+                  <span className="text-[9px] text-[#8A1538] dark:text-rose-300 uppercase font-black tracking-[0.32em]">Tournament Predictor</span>
+                  <span className="h-px w-4 bg-gradient-to-r from-transparent via-[#8A1538]/60 to-transparent"></span>
+                </div>
               </div>
             </div>
             
@@ -710,11 +743,19 @@ export default function App() {
                             // Extract source-group letter(s) from placeholder "Nhì bảng A" / "Hạng ba bảng A/B/C/D/F" / "W M57" ...
                             const extractGroupLetters = (placeholder?: string): string[] => {
                               if (!placeholder) return [];
+                              if (/^(Thắng|Thua)/i.test(placeholder)) return [];
                               const all = Array.from(placeholder.matchAll(/[A-L]/g)).map(m => m[0].toUpperCase());
                               return Array.from(new Set(all));
                             };
                             const extractToken = (placeholder?: string): string => {
                               if (!placeholder) return '?';
+                              const tMatch = placeholder.match(/T(\d+)/i);
+                              if (tMatch) return `T${tMatch[1]}`;
+                              const ordMatch = placeholder.match(/(Tứ kết|Bán kết|Chung kết)\s+(\d+)/i);
+                              if (ordMatch) {
+                                const map: Record<string, string> = { 'tứ kết': 'TK', 'bán kết': 'BK', 'chung kết': 'CK' };
+                                return `${map[ordMatch[1].toLowerCase()] || '?'}${ordMatch[2]}`;
+                              }
                               const letters = extractGroupLetters(placeholder);
                               if (letters.length === 1) return letters[0];
                               if (letters.length > 1) return letters.length <= 3 ? letters.join('/') : `${letters.length}B`;
@@ -969,8 +1010,31 @@ export default function App() {
                 )}
                 
                 {matchView === 'knockout' && (
-                  <div className="space-y-20 py-8 overflow-x-auto scrollbar-hide">
-                    {knockoutStagesList.map((stage, sIdx) => {
+                  <div className="space-y-10 py-8">
+                    {/* Knockout round tab strip */}
+                    <div className="flex items-center gap-2 overflow-x-auto pb-4 scrollbar-hide snap-x">
+                      {(knockoutStagesList as KnockoutStage[]).map((stage) => {
+                        const isActive = selectedKnockoutStage === stage;
+                        const tabColor = getGroupColor(stage);
+                        return (
+                          <button
+                            key={stage}
+                            type="button"
+                            onClick={() => setSelectedKnockoutStage(stage)}
+                            className={`flex-shrink-0 px-6 py-3 rounded-2xl border-2 font-bold text-sm transition-all snap-start ${
+                              isActive
+                                ? `bg-gradient-to-r ${tabColor.from} ${tabColor.to} text-white border-transparent shadow-[0_8px_16px_rgba(0,0,0,0.15)]`
+                                : 'bg-white dark:bg-[#141414] text-slate-600 dark:text-slate-300 border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-[#1A1A1A]'
+                            }`}
+                          >
+                            {stage}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {knockoutStagesList.filter(stage => stage === selectedKnockoutStage).map((stage) => {
+                      const sIdx = knockoutStagesList.indexOf(stage);
                       const stageMatches = matches.filter(m => m.group === stage);
                       const stageKey = stage as KnockoutStage;
                       const assigned = isStageAssigned(stage);
@@ -992,10 +1056,17 @@ export default function App() {
                         : !isNext
                         ? 'Vòng trước đó cần được chia trước'
                         : '';
+                      const stageColor = getGroupColor(stageKey);
                       return (
-                        <div key={stage} className="space-y-8">
+                        <motion.div
+                          key={stage}
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.35, ease: 'easeOut' }}
+                          className="space-y-8"
+                        >
                           <div className="flex flex-wrap items-center gap-4">
-                             <div className="w-12 h-12 bg-[#8A1538] rounded-2xl flex items-center justify-center text-white font-display font-bold text-lg shadow-lg rotate-3 group-hover:rotate-0">
+                             <div className={`w-12 h-12 bg-gradient-to-br ${stageColor.from} ${stageColor.to} rounded-2xl flex items-center justify-center text-white font-display font-bold text-lg shadow-lg rotate-3 group-hover:rotate-0`}>
                                {sIdx + 1}
                              </div>
                              <div>
@@ -1042,91 +1113,351 @@ export default function App() {
                              </div>
                           </div>
                           
-                          <div className="flex gap-8 pb-8">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pb-8">
                             {stageMatches.map(match => {
                               const date = new Date(match.date);
+                              const groupAssignment = matchAssignments[match.id]
+                                ? { group1: matchAssignments[match.id].side1, group2: matchAssignments[match.id].side2 }
+                                : { group1: [] as string[], group2: [] as string[] };
+                              const groupColor = getGroupColor(match.group);
                               const t1Color = getTeamColor(match.team1Id);
                               const t2Color = getTeamColor(match.team2Id);
-                              const mAssign = matchAssignments[match.id];
+                              const isKnockoutCard = true;
+                              const team1 = teams.find(t => t.id === match.team1Id);
+                              const team2 = teams.find(t => t.id === match.team2Id);
+                              const extractGroupLetters = (placeholder?: string): string[] => {
+                                if (!placeholder) return [];
+                                // Knockout-source placeholders ("Thắng/Thua ...") không phải tham chiếu bảng
+                                if (/^(Thắng|Thua)/i.test(placeholder)) return [];
+                                const all = Array.from(placeholder.matchAll(/[A-L]/g)).map(m => m[0].toUpperCase());
+                                return Array.from(new Set(all));
+                              };
+                              const extractToken = (placeholder?: string): string => {
+                                if (!placeholder) return '?';
+                                const tMatch = placeholder.match(/T(\d+)/i);
+                                if (tMatch) return `T${tMatch[1]}`;
+                                const ordMatch = placeholder.match(/(Tứ kết|Bán kết|Chung kết)\s+(\d+)/i);
+                                if (ordMatch) {
+                                  const map: Record<string, string> = { 'tứ kết': 'TK', 'bán kết': 'BK', 'chung kết': 'CK' };
+                                  return `${map[ordMatch[1].toLowerCase()] || '?'}${ordMatch[2]}`;
+                                }
+                                const letters = extractGroupLetters(placeholder);
+                                if (letters.length === 1) return letters[0];
+                                if (letters.length > 1) return letters.length <= 3 ? letters.join('/') : `${letters.length}B`;
+                                const w = placeholder.match(/M(\d+)/i);
+                                if (w) return `M${w[1]}`;
+                                return placeholder.slice(0, 2).toUpperCase();
+                              };
+                              const t1Token = team1 ? null : extractToken(match.team1Placeholder);
+                              const t2Token = team2 ? null : extractToken(match.team2Placeholder);
+                              const t1Letters = team1 ? [] : extractGroupLetters(match.team1Placeholder);
+                              const t2Letters = team2 ? [] : extractGroupLetters(match.team2Placeholder);
+
+                              // Resolve candidate teams from placeholders like
+                              // "Thắng Vòng 1/16 - T73" / "Thắng Tứ kết 1" / "Thua Bán kết 2"
+                              const resolveSourceCandidates = (placeholder?: string) => {
+                                if (!placeholder) return { candidates: [] as typeof teams, label: '', sourceMatchId: '' };
+                                const isLose = /^Thua/i.test(placeholder);
+                                const verb = isLose ? 'Thua' : 'Thắng';
+                                let sourceMatch: typeof match | null = null;
+                                let sourceLabel = '';
+                                const tMatch = placeholder.match(/T(\d+)/i);
+                                if (tMatch) {
+                                  const id = `M${tMatch[1]}`;
+                                  sourceMatch = matches.find(m => m.id === id) || null;
+                                  sourceLabel = `T${tMatch[1]}`;
+                                } else {
+                                  const ordMatch = placeholder.match(/(Tứ kết|Bán kết|Chung kết)\s+(\d+)/i);
+                                  if (ordMatch) {
+                                    const stageName = ordMatch[1];
+                                    const ord = parseInt(ordMatch[2], 10);
+                                    const stageMatches = matches
+                                      .filter(m => m.group === stageName)
+                                      .sort((a, b) => parseInt(a.id.slice(1), 10) - parseInt(b.id.slice(1), 10));
+                                    sourceMatch = stageMatches[ord - 1] || null;
+                                    sourceLabel = `${stageName} ${ord}`;
+                                  }
+                                }
+                                if (!sourceMatch) return { candidates: [] as typeof teams, label: '', sourceMatchId: '' };
+                                const candidateIds = [sourceMatch.team1Id, sourceMatch.team2Id].filter(Boolean) as string[];
+                                const cands = teams.filter(t => candidateIds.includes(t.id));
+                                if (
+                                  sourceMatch.status === 'finished' &&
+                                  sourceMatch.score1 != null &&
+                                  sourceMatch.score2 != null &&
+                                  cands.length === 2 &&
+                                  sourceMatch.score1 !== sourceMatch.score2
+                                ) {
+                                  const winnerId = sourceMatch.score1 > sourceMatch.score2 ? sourceMatch.team1Id : sourceMatch.team2Id;
+                                  const preferredId = isLose
+                                    ? (winnerId === sourceMatch.team1Id ? sourceMatch.team2Id : sourceMatch.team1Id)
+                                    : winnerId;
+                                  cands.sort((a, b) => (a.id === preferredId ? -1 : b.id === preferredId ? 1 : 0));
+                                }
+                                return { candidates: cands, label: `Chọn ${verb.toLowerCase()} ${sourceLabel}`, sourceMatchId: sourceMatch.id };
+                              };
+                              const t1Source = team1 ? { candidates: [] as typeof teams, label: '', sourceMatchId: '' } : resolveSourceCandidates(match.team1Placeholder);
+                              const t2Source = team2 ? { candidates: [] as typeof teams, label: '', sourceMatchId: '' } : resolveSourceCandidates(match.team2Placeholder);
+
+                              const renderTeamMedallion = (
+                                team: typeof team1,
+                                token: string | null,
+                                colorScheme: typeof t1Color,
+                                side: 'left' | 'right',
+                              ) => {
+                                const canReset = !!team && !!(side === 'left' ? match.team1Placeholder : match.team2Placeholder);
+                                if (team) {
+                                  const medallion = (
+                                    <div className={`w-24 h-24 bg-gradient-to-br ${colorScheme.bgGradient} rounded-full flex items-center justify-center text-4xl shadow-[0_15px_30px_rgb(0,0,0,0.06)] dark:shadow-[0_15px_30px_rgb(0,0,0,0.3)] ring-4 ring-white dark:ring-[#141414] group-hover/team:scale-110 transition-all duration-500`}>
+                                      {team.flag}
+                                    </div>
+                                  );
+                                  if (!canReset) return medallion;
+                                  return (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleKnockoutTeamPick(match.id, side === 'left' ? 'team1' : 'team2', '')}
+                                      title="Click để chọn lại đội"
+                                      className="relative group/reset focus:outline-none focus:ring-4 focus:ring-[#8A1538]/20 rounded-full"
+                                    >
+                                      {medallion}
+                                      <div className="absolute inset-0 rounded-full bg-slate-900/0 group-hover/reset:bg-slate-900/55 transition-colors duration-200 flex flex-col items-center justify-center opacity-0 group-hover/reset:opacity-100">
+                                        <span className="text-white text-2xl font-black leading-none">×</span>
+                                        <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/90 mt-0.5">Chọn lại</span>
+                                      </div>
+                                      <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#8A1538] text-white text-[11px] font-black flex items-center justify-center shadow-lg ring-2 ring-white dark:ring-[#141414] opacity-0 group-hover/reset:opacity-100 transition-opacity">×</div>
+                                    </button>
+                                  );
+                                }
+                                const isLeft = side === 'left';
+                                const ringGrad = isLeft
+                                  ? 'from-sky-500 to-blue-600'
+                                  : 'from-[#D6284B] to-[#8A1538]';
+                                const innerGrad = isLeft
+                                  ? 'from-sky-50 to-blue-100 dark:from-sky-500/15 dark:to-blue-600/15'
+                                  : 'from-rose-50 to-pink-100 dark:from-rose-500/15 dark:to-pink-600/15';
+                                const tokenText = isLeft
+                                  ? 'text-blue-600 dark:text-sky-300'
+                                  : 'text-[#8A1538] dark:text-rose-300';
+                                const tbdText = isLeft
+                                  ? 'text-sky-500/80 dark:text-sky-400/80'
+                                  : 'text-[#8A1538]/70 dark:text-rose-400/80';
+                                return (
+                                  <div className="relative w-24 h-24">
+                                    <div className={`absolute inset-0 rounded-full bg-gradient-to-br ${ringGrad} opacity-90 shadow-[0_15px_30px_rgba(0,0,0,0.1)] dark:shadow-[0_15px_30px_rgba(0,0,0,0.4)] p-[3px] ring-4 ring-white dark:ring-[#141414]`}>
+                                      <div className={`w-full h-full rounded-full bg-gradient-to-br ${innerGrad} flex flex-col items-center justify-center group-hover/team:rotate-[8deg] transition-transform duration-500`}>
+                                        <span className={`font-display font-black text-2xl leading-none ${tokenText} drop-shadow-sm`}>{token}</span>
+                                        <span className={`text-[8px] font-black uppercase tracking-[0.25em] ${tbdText} mt-0.5`}>TBD</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              };
+
                               return (
-                                <motion.div 
-                                  initial={{ opacity: 0, x: 20 }}
-                                  whileInView={{ opacity: 1, x: 0 }}
+                                <motion.div
+                                  layout
+                                  initial={{ opacity: 0, y: 20 }}
+                                  whileInView={{ opacity: 1, y: 0 }}
                                   viewport={{ once: true }}
-                                  key={match.id} 
-                                  className="relative w-[340px] shrink-0 bg-white dark:bg-[#141414] border border-slate-200 dark:border-slate-800 rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-[0_20px_50px_rgb(0,0,0,0.06)] group hover:-translate-y-2 transition-all duration-300"
+                                  key={match.id}
+                                  className="relative w-full bg-white dark:bg-[#141414] border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm hover:shadow-[0_20px_50px_rgb(0,0,0,0.06)] hover:-translate-y-1 hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 group"
                                 >
-                                  <div className="absolute inset-0 bg-gradient-to-tl from-slate-50/80 to-transparent dark:from-[#1A1A1A]/80 pointer-events-none"></div>
-                                  <div className="absolute top-0 right-0 w-1.5 h-full bg-gradient-to-b from-[#8A1538] to-[#D6284B] opacity-80"></div>
-                                  
-                                  <div className="relative p-8 sm:p-10 space-y-8">
-                                    <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                                      <span className="bg-slate-100 dark:bg-[#1A1A1A] px-3 py-1 rounded-full text-slate-600 dark:text-slate-300">TRẬN {match.id.replace('M', '')}</span>
-                                      <span className="text-[#8A1538] font-bold">{match.location}</span>
+                                  <div className={`absolute inset-0 bg-gradient-to-br from-slate-50/50 to-transparent dark:from-[#1A1A1A]/50 pointer-events-none transition-colors duration-300`}></div>
+                                  <div className={`absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r ${groupColor.from} ${groupColor.to} opacity-80`}></div>
+                                  <div className={`absolute top-6 left-0 w-8 h-[2px] bg-gradient-to-r ${groupColor.from} ${groupColor.to} opacity-40`}></div>
+                                  <div className={`absolute top-6 right-0 w-8 h-[2px] bg-gradient-to-r ${groupColor.from} ${groupColor.to} opacity-40`}></div>
+
+                                  <div className="relative p-6 sm:p-8">
+                                    <div className="flex items-center justify-between mb-8 gap-3">
+                                      <div className={`flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest ${groupColor.text} px-3 py-1.5 rounded-full border ${groupColor.border} bg-white dark:bg-[#141414] shadow-sm`}>
+                                        <span className={`${groupColor.bg} w-5 h-5 rounded-full flex items-center justify-center -ml-1.5`}>M{match.id.replace('M', '')}</span>
+                                        <span className="truncate max-w-[120px]">{match.location}</span>
+                                      </div>
+                                      <div className="hidden sm:flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.25em] text-amber-600 dark:text-amber-400">
+                                        <Trophy className="w-3 h-3" />
+                                        Bracket
+                                      </div>
+                                      <div className={`text-[10px] font-bold ${groupColor.text} ${groupColor.bg} px-3 py-1 rounded-full uppercase tracking-widest border ${groupColor.border} whitespace-nowrap`}>
+                                        {new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' }).format(date)}
+                                      </div>
                                     </div>
 
-                                    <div className="flex items-center justify-around">
+                                    <div className="grid grid-cols-11 items-center gap-2">
                                       {/* Team 1 */}
-                                      <div className="flex flex-col items-center gap-4 w-1/3">
-                                        <div className={`w-16 h-16 bg-gradient-to-br ${t1Color.bgGradient} rounded-full flex items-center justify-center text-3xl shadow-[inset_0_-4px_8px_rgba(0,0,0,0.04),0_8px_16px_rgba(0,0,0,0.04)] dark:shadow-[inset_0_-4px_8px_rgba(0,0,0,0.2),0_8px_16px_rgba(0,0,0,0.2)] ring-4 ring-white dark:ring-[#141414] group-hover:scale-110 transition-transform duration-300`}>
-                                          {teams.find(t => t.id === match.team1Id)?.flag || '🏳️'}
-                                        </div>
-                                        <span className={`font-display font-bold text-base ${t1Color.text} text-center leading-tight line-clamp-2`}>
-                                          {getTeamName(match.team1Id, match.team1Placeholder, false)}
-                                        </span>
-                                        {mAssign && mAssign.side1.length > 0 && (
-                                          <div className="flex flex-wrap justify-center gap-1">
-                                            {mAssign.side1.map(p => (
-                                              <span key={p} className="text-[9px] font-black text-white bg-blue-600/90 shadow-[0_4px_10px_rgba(37,99,235,0.3)] px-2 py-0.5 rounded-full uppercase tracking-tighter">{p}</span>
-                                            ))}
+                                      <div className="col-span-4 flex flex-col items-center text-center gap-3 relative z-10 hover:-translate-y-1 transition-transform group/team">
+                                        {renderTeamMedallion(team1, t1Token, t1Color, 'left')}
+                                        <div className="space-y-1.5 mt-2">
+                                          <div className={`font-display font-black text-xl ${team1 ? t1Color.text : 'text-blue-700 dark:text-sky-200'} leading-tight tracking-tight drop-shadow-sm`}>
+                                            {getTeamName(match.team1Id, match.team1Placeholder, false)}
                                           </div>
-                                        )}
+                                          {!team1 && (() => {
+                                            const sourceGroups = t1Letters;
+                                            if (!sourceGroups.length) {
+                                              if (!t1Source.candidates.length) {
+                                                return (
+                                                  <div className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-[0.25em] text-blue-600/80 dark:text-sky-400/80 bg-blue-50 dark:bg-sky-500/10 px-2 py-0.5 rounded-full">
+                                                    <span className="w-1 h-1 rounded-full bg-blue-500 animate-pulse"></span>
+                                                    Chờ đối thủ
+                                                  </div>
+                                                );
+                                              }
+                                              return (
+                                                <div className="relative inline-block">
+                                                  <select
+                                                    value=""
+                                                    onChange={(e) => handleKnockoutTeamPick(match.id, 'team1', e.target.value)}
+                                                    className="appearance-none text-[10px] font-black uppercase tracking-[0.2em] text-blue-700 dark:text-sky-300 bg-blue-50 dark:bg-sky-500/10 hover:bg-blue-100 dark:hover:bg-sky-500/20 border border-blue-200 dark:border-sky-500/30 pl-3 pr-7 py-1 rounded-full cursor-pointer outline-none focus:ring-4 focus:ring-blue-500/20 transition-all shadow-sm max-w-[220px]"
+                                                  >
+                                                    <option value="">{t1Source.label}</option>
+                                                    {t1Source.candidates.map(t => (
+                                                      <option key={t.id} value={t.id}>{t.flag} {t.name}</option>
+                                                    ))}
+                                                  </select>
+                                                  <ChevronRight className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-blue-500 rotate-90 pointer-events-none" />
+                                                </div>
+                                              );
+                                            }
+                                            const labelText = sourceGroups.length === 1
+                                              ? `Chọn đội bảng ${sourceGroups[0]}`
+                                              : `Chọn từ ${sourceGroups.length} bảng (${sourceGroups.join('/')})`;
+                                            return (
+                                              <div className="relative inline-block">
+                                                <select
+                                                  value=""
+                                                  onChange={(e) => handleKnockoutTeamPick(match.id, 'team1', e.target.value)}
+                                                  className="appearance-none text-[10px] font-black uppercase tracking-[0.2em] text-blue-700 dark:text-sky-300 bg-blue-50 dark:bg-sky-500/10 hover:bg-blue-100 dark:hover:bg-sky-500/20 border border-blue-200 dark:border-sky-500/30 pl-3 pr-7 py-1 rounded-full cursor-pointer outline-none focus:ring-4 focus:ring-blue-500/20 transition-all shadow-sm max-w-[200px]"
+                                                >
+                                                  <option value="">{labelText}</option>
+                                                  {sourceGroups.map(g => {
+                                                    const list = teams.filter(t => t.group === g);
+                                                    if (!list.length) return null;
+                                                    return (
+                                                      <optgroup key={g} label={`Bảng ${g}`}>
+                                                        {list.map(t => (
+                                                          <option key={t.id} value={t.id}>{t.flag} {t.name}</option>
+                                                        ))}
+                                                      </optgroup>
+                                                    );
+                                                  })}
+                                                </select>
+                                                <ChevronRight className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-blue-500 rotate-90 pointer-events-none" />
+                                              </div>
+                                            );
+                                          })()}
+                                          {groupAssignment.group1.length > 0 && (
+                                            <div className="flex flex-wrap justify-center gap-1.5">
+                                              {groupAssignment.group1.map(p => (
+                                                <span key={p} className="text-[10px] font-black text-white bg-blue-600/90 shadow-[0_4px_10px_rgba(37,99,235,0.3)] px-2.5 py-0.5 rounded-full uppercase tracking-tighter">{p}</span>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
                                       </div>
 
                                       {/* Score/Time */}
-                                      <div className="flex flex-col items-center gap-2">
-                                        <div className="flex items-center gap-1">
-                                          <input 
-                                            type="number" 
-                                            value={match.score1 ?? ''}
-                                            className={`w-12 h-14 text-center bg-slate-50 dark:bg-[#1A1A1A] border-2 border-slate-200 dark:border-slate-700 hover:border-slate-300 hover:dark:border-slate-600 rounded-xl focus:border-transparent ${t1Color.ring} outline-none font-display font-black text-2xl transition-all shadow-inner text-slate-900 dark:text-white`}
-                                            placeholder="-"
-                                            onChange={(e) => handleScoreChange(match.id, e.target.value, match.score2?.toString() || '')}
-                                          />
-                                          <span className="text-xl text-slate-300 dark:text-slate-600 font-black">:</span>
-                                          <input 
-                                            type="number" 
-                                            value={match.score2 ?? ''}
-                                            className={`w-12 h-14 text-center bg-slate-50 dark:bg-[#1A1A1A] border-2 border-slate-200 dark:border-slate-700 hover:border-slate-300 hover:dark:border-slate-600 rounded-xl focus:border-transparent ${t2Color.ring} outline-none font-display font-black text-2xl transition-all shadow-inner text-slate-900 dark:text-white`}
-                                            placeholder="-"
-                                            onChange={(e) => handleScoreChange(match.id, match.score1?.toString() || '', e.target.value)}
-                                          />
-                                        </div>
-                                        {match.status !== 'finished' && (
-                                          <div className="font-mono text-sm font-bold text-[#8A1538] bg-[#8A1538]/5 px-3 py-1 mt-1 rounded-lg border border-[#8A1538]/10">
-                                            {new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Ho_Chi_Minh' }).format(date)}
+                                      <div className="col-span-3 flex flex-col items-center justify-center pt-2">
+                                        <div className="flex flex-col items-center gap-4">
+                                          {match.status !== 'finished' && (
+                                            <div className="font-mono text-xl font-black tracking-tight bg-slate-900 text-white px-5 py-2 rounded-2xl shadow-xl ring-4 ring-slate-100 dark:ring-white/5 flex items-center gap-2">
+                                              <span className="w-1.5 h-1.5 bg-[#8A1538] rounded-full animate-pulse"></span>
+                                              {new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Ho_Chi_Minh' }).format(date)}
+                                            </div>
+                                          )}
+                                          <div className="flex items-center gap-2 group/score">
+                                            <input
+                                              type="number"
+                                              value={match.score1 ?? ''}
+                                              className={`w-14 h-18 sm:w-16 sm:h-20 text-center bg-slate-100 dark:bg-[#0A0A0A] border-2 border-slate-200 dark:border-slate-800 rounded-2xl focus:border-[#8A1538] focus:ring-8 focus:ring-[#8A1538]/5 focus:bg-white dark:focus:bg-[#111] outline-none font-display font-black text-3xl sm:text-4xl text-slate-900 dark:text-white transition-all shadow-inner group-hover/score:shadow-lg`}
+                                              placeholder="-"
+                                              onChange={(e) => handleScoreChange(match.id, e.target.value, match.score2?.toString() || '')}
+                                            />
+                                            <span className="text-2xl text-slate-300 dark:text-slate-700 font-black animate-pulse">:</span>
+                                            <input
+                                              type="number"
+                                              value={match.score2 ?? ''}
+                                              className={`w-14 h-18 sm:w-16 sm:h-20 text-center bg-slate-100 dark:bg-[#0A0A0A] border-2 border-slate-200 dark:border-slate-800 rounded-2xl focus:border-[#8A1538] focus:ring-8 focus:ring-[#8A1538]/5 focus:bg-white dark:focus:bg-[#111] outline-none font-display font-black text-3xl sm:text-4xl text-slate-900 dark:text-white transition-all shadow-inner group-hover/score:shadow-lg`}
+                                              placeholder="-"
+                                              onChange={(e) => handleScoreChange(match.id, match.score1?.toString() || '', e.target.value)}
+                                            />
                                           </div>
-                                        )}
-                                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-1">
-                                          {new Intl.DateTimeFormat('vi-VN', { day: 'numeric', month: 'short' }).format(date)}
-                                        </span>
+                                          <div className="flex items-center gap-1.5 mt-1">
+                                            <span className="h-[1px] w-3 bg-gradient-to-r from-transparent to-amber-500/60"></span>
+                                            <span className="text-[9px] font-black uppercase tracking-[0.3em] bg-gradient-to-r from-amber-500 to-[#8A1538] bg-clip-text text-transparent">VS</span>
+                                            <span className="h-[1px] w-3 bg-gradient-to-l from-transparent to-[#8A1538]/60"></span>
+                                          </div>
+                                        </div>
                                       </div>
 
                                       {/* Team 2 */}
-                                      <div className="flex flex-col items-center gap-4 w-1/3">
-                                        <div className={`w-16 h-16 bg-gradient-to-br ${t2Color.bgGradient} rounded-full flex items-center justify-center text-3xl shadow-[inset_0_-4px_8px_rgba(0,0,0,0.04),0_8px_16px_rgba(0,0,0,0.04)] dark:shadow-[inset_0_-4px_8px_rgba(0,0,0,0.2),0_8px_16px_rgba(0,0,0,0.2)] ring-4 ring-white dark:ring-[#141414] group-hover:scale-110 transition-transform duration-300`}>
-                                          {teams.find(t => t.id === match.team2Id)?.flag || '🏳️'}
-                                        </div>
-                                        <span className={`font-display font-bold text-base ${t2Color.text} text-center leading-tight line-clamp-2`}>
-                                          {getTeamName(match.team2Id, match.team2Placeholder, false)}
-                                        </span>
-                                        {mAssign && mAssign.side2.length > 0 && (
-                                          <div className="flex flex-wrap justify-center gap-1">
-                                            {mAssign.side2.map(p => (
-                                              <span key={p} className="text-[9px] font-black text-white bg-[#8A1538]/90 shadow-[0_4px_10px_rgba(138,21,56,0.3)] px-2 py-0.5 rounded-full uppercase tracking-tighter">{p}</span>
-                                            ))}
+                                      <div className="col-span-4 flex flex-col items-center text-center gap-3 relative z-10 hover:-translate-y-1 transition-transform group/team">
+                                        {renderTeamMedallion(team2, t2Token, t2Color, 'right')}
+                                        <div className="space-y-1.5 mt-2">
+                                          <div className={`font-display font-black text-xl ${team2 ? t2Color.text : 'text-[#8A1538] dark:text-rose-200'} leading-tight tracking-tight drop-shadow-sm`}>
+                                            {getTeamName(match.team2Id, match.team2Placeholder, false)}
                                           </div>
-                                        )}
+                                          {!team2 && (() => {
+                                            const sourceGroups = t2Letters;
+                                            if (!sourceGroups.length) {
+                                              if (!t2Source.candidates.length) {
+                                                return (
+                                                  <div className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-[0.25em] text-[#8A1538]/80 dark:text-rose-400/80 bg-rose-50 dark:bg-rose-500/10 px-2 py-0.5 rounded-full">
+                                                    <span className="w-1 h-1 rounded-full bg-[#8A1538] animate-pulse"></span>
+                                                    Chờ đối thủ
+                                                  </div>
+                                                );
+                                              }
+                                              return (
+                                                <div className="relative inline-block">
+                                                  <select
+                                                    value=""
+                                                    onChange={(e) => handleKnockoutTeamPick(match.id, 'team2', e.target.value)}
+                                                    className="appearance-none text-[10px] font-black uppercase tracking-[0.2em] text-[#8A1538] dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 border border-rose-200 dark:border-rose-500/30 pl-3 pr-7 py-1 rounded-full cursor-pointer outline-none focus:ring-4 focus:ring-[#8A1538]/20 transition-all shadow-sm max-w-[220px]"
+                                                  >
+                                                    <option value="">{t2Source.label}</option>
+                                                    {t2Source.candidates.map(t => (
+                                                      <option key={t.id} value={t.id}>{t.flag} {t.name}</option>
+                                                    ))}
+                                                  </select>
+                                                  <ChevronRight className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-[#8A1538] rotate-90 pointer-events-none" />
+                                                </div>
+                                              );
+                                            }
+                                            const labelText = sourceGroups.length === 1
+                                              ? `Chọn đội bảng ${sourceGroups[0]}`
+                                              : `Chọn từ ${sourceGroups.length} bảng (${sourceGroups.join('/')})`;
+                                            return (
+                                              <div className="relative inline-block">
+                                                <select
+                                                  value=""
+                                                  onChange={(e) => handleKnockoutTeamPick(match.id, 'team2', e.target.value)}
+                                                  className="appearance-none text-[10px] font-black uppercase tracking-[0.2em] text-[#8A1538] dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 border border-rose-200 dark:border-rose-500/30 pl-3 pr-7 py-1 rounded-full cursor-pointer outline-none focus:ring-4 focus:ring-[#8A1538]/20 transition-all shadow-sm max-w-[200px]"
+                                                >
+                                                  <option value="">{labelText}</option>
+                                                  {sourceGroups.map(g => {
+                                                    const list = teams.filter(t => t.group === g);
+                                                    if (!list.length) return null;
+                                                    return (
+                                                      <optgroup key={g} label={`Bảng ${g}`}>
+                                                        {list.map(t => (
+                                                          <option key={t.id} value={t.id}>{t.flag} {t.name}</option>
+                                                        ))}
+                                                      </optgroup>
+                                                    );
+                                                  })}
+                                                </select>
+                                                <ChevronRight className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-[#8A1538] rotate-90 pointer-events-none" />
+                                              </div>
+                                            );
+                                          })()}
+                                          {groupAssignment.group2.length > 0 && (
+                                            <div className="flex flex-wrap justify-center gap-1.5">
+                                              {groupAssignment.group2.map(p => (
+                                                <span key={p} className="text-[10px] font-black text-white bg-[#8A1538]/90 shadow-[0_4px_10px_rgba(138,21,56,0.3)] px-2.5 py-0.5 rounded-full uppercase tracking-tighter">{p}</span>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
@@ -1134,7 +1465,7 @@ export default function App() {
                               );
                             })}
                           </div>
-                        </div>
+                        </motion.div>
                       );
                     })}
                   </div>
@@ -1709,6 +2040,131 @@ export default function App() {
           })}
         </nav>
       </div>
+
+      <AnimatePresence>
+        {showResetModal && (
+          <motion.div
+            key="reset-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-[110] flex items-center justify-center p-4"
+            onClick={() => !resetting && setShowResetModal(false)}
+          >
+            <motion.div
+              key="reset-modal"
+              initial={{ opacity: 0, scale: 0.92, y: 24 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 12 }}
+              transition={{ type: 'spring', stiffness: 280, damping: 26 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-lg bg-white dark:bg-[#111] rounded-[2rem] shadow-[0_40px_90px_-20px_rgba(138,21,56,0.45)] border border-rose-100/60 dark:border-rose-500/10 overflow-hidden"
+            >
+              {/* Top gradient bar */}
+              <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-amber-400 via-[#D6284B] to-[#8A1538]"></div>
+              {/* Decorative glow blobs */}
+              <div className="pointer-events-none absolute -top-24 -right-24 w-64 h-64 rounded-full bg-rose-500/15 blur-3xl"></div>
+              <div className="pointer-events-none absolute -bottom-24 -left-24 w-64 h-64 rounded-full bg-amber-400/10 blur-3xl"></div>
+
+              {/* Close */}
+              <button
+                type="button"
+                onClick={() => !resetting && setShowResetModal(false)}
+                disabled={resetting}
+                className="absolute top-4 right-4 w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-40"
+                aria-label="Đóng"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="relative p-8 sm:p-10">
+                {/* Icon */}
+                <div className="flex items-start gap-5 mb-6">
+                  <div className="relative shrink-0">
+                    <div className="absolute -inset-2 rounded-3xl bg-gradient-to-br from-rose-400/40 to-amber-400/30 blur-xl"></div>
+                    <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-[#D6284B] via-[#A41A45] to-[#5C0E25] flex items-center justify-center shadow-[0_12px_28px_-6px_rgba(138,21,56,0.55)] ring-4 ring-white dark:ring-[#111]">
+                      <AlertTriangle className="w-8 h-8 text-white drop-shadow" strokeWidth={2.25} />
+                    </div>
+                  </div>
+                  <div className="pt-1">
+                    <div className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.28em] text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 px-2.5 py-1 rounded-full border border-rose-100 dark:border-rose-500/20 mb-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+                      Hành động không thể hoàn tác
+                    </div>
+                    <h3 className="font-display text-2xl sm:text-3xl font-black text-slate-900 dark:text-white leading-tight tracking-tight">
+                      Reset toàn bộ dữ liệu?
+                    </h3>
+                  </div>
+                </div>
+
+                <p className="text-sm sm:text-[15px] leading-relaxed text-slate-600 dark:text-slate-300 mb-6">
+                  Toàn bộ <span className="font-bold text-slate-900 dark:text-white">tỉ số</span> và <span className="font-bold text-slate-900 dark:text-white">phân nhóm người chơi</span> sẽ bị xóa để đồng bộ lại lịch thi đấu mới nhất từ hệ thống.
+                </p>
+
+                {/* What gets cleared */}
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0A0A0A] p-4 mb-7 space-y-2.5">
+                  {[
+                    { label: 'Tỉ số tất cả các trận', removed: true },
+                    { label: 'Phân nhóm người chơi (vòng bảng & loại trực tiếp)', removed: true },
+                    { label: 'Danh sách người chơi', removed: false },
+                  ].map((row) => (
+                    <div key={row.label} className="flex items-center gap-3 text-[13px]">
+                      <span className={`flex-shrink-0 w-5 h-5 rounded-md flex items-center justify-center text-[11px] font-black ${
+                        row.removed
+                          ? 'bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300'
+                          : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300'
+                      }`}>
+                        {row.removed ? '×' : '✓'}
+                      </span>
+                      <span className={`${row.removed ? 'text-slate-700 dark:text-slate-200' : 'text-slate-500 dark:text-slate-400'} font-medium`}>
+                        {row.label}
+                      </span>
+                      <span className={`ml-auto text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${
+                        row.removed
+                          ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                          : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                      }`}>
+                        {row.removed ? 'Xóa' : 'Giữ lại'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Actions */}
+                <div className="flex flex-col-reverse sm:flex-row gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowResetModal(false)}
+                    disabled={resetting}
+                    className="flex-1 px-5 py-3.5 rounded-2xl font-black text-sm uppercase tracking-wider text-slate-700 dark:text-slate-200 bg-white dark:bg-[#1A1A1A] border-2 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-[#222] active:scale-[0.98] transition-all disabled:opacity-50"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={performReset}
+                    disabled={resetting}
+                    className="flex-1 px-5 py-3.5 rounded-2xl font-black text-sm uppercase tracking-wider text-white bg-gradient-to-br from-[#D6284B] via-[#A41A45] to-[#6B0F2A] shadow-[0_12px_28px_-8px_rgba(138,21,56,0.6)] hover:shadow-[0_16px_36px_-8px_rgba(138,21,56,0.75)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {resetting ? (
+                      <>
+                        <span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin"></span>
+                        Đang reset...
+                      </>
+                    ) : (
+                      <>
+                        <Shuffle className="w-4 h-4" />
+                        Xác nhận Reset
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {showSaveModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4">
