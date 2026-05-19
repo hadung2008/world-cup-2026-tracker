@@ -1304,18 +1304,19 @@ export default function App() {
                                   <div className={`absolute top-6 left-0 w-8 h-[2px] bg-gradient-to-r ${groupColor.from} ${groupColor.to} opacity-40`}></div>
                                   <div className={`absolute top-6 right-0 w-8 h-[2px] bg-gradient-to-r ${groupColor.from} ${groupColor.to} opacity-40`}></div>
 
-                                  <div className="relative p-4 sm:p-6 md:p-8">
+                                  <div className="relative p-3 sm:p-6 md:p-8">
                                     <div className="flex items-center justify-between mb-5 sm:mb-8 gap-2 sm:gap-3">
-                                      <div className={`flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest ${groupColor.text} px-2 sm:px-3 py-1.5 rounded-full border ${groupColor.border} bg-white dark:bg-[#141414] shadow-sm`}>
-                                        <span className={`${groupColor.bg} w-5 h-5 rounded-full flex items-center justify-center -ml-1.5`}>M{match.id.replace('M', '')}</span>
-                                        <span className="truncate max-w-[80px] sm:max-w-[120px]">{match.location}</span>
+                                      <div className={`flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest ${groupColor.text} px-2 sm:px-3 py-1.5 rounded-full border ${groupColor.border} bg-white dark:bg-[#141414] shadow-sm min-w-0`}>
+                                        <span className={`${groupColor.bg} w-5 h-5 rounded-full flex items-center justify-center -ml-1.5 shrink-0`}>M{match.id.replace('M', '')}</span>
+                                        <span className="truncate max-w-[60px] sm:max-w-[120px]">{match.location}</span>
                                       </div>
                                       <div className="hidden sm:flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.25em] text-amber-600 dark:text-amber-400">
                                         <Trophy className="w-3 h-3" />
                                         Bracket
                                       </div>
-                                      <div className={`text-[10px] font-bold ${groupColor.text} ${groupColor.bg} px-3 py-1 rounded-full uppercase tracking-widest border ${groupColor.border} whitespace-nowrap`}>
-                                        {new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' }).format(date)}
+                                      <div className={`text-[10px] font-bold ${groupColor.text} ${groupColor.bg} px-2 sm:px-3 py-1 rounded-full uppercase tracking-widest border ${groupColor.border} whitespace-nowrap shrink-0`}>
+                                        <span className="sm:hidden">{new Intl.DateTimeFormat('vi-VN', { day: 'numeric', month: 'numeric' }).format(date)}</span>
+                                        <span className="hidden sm:inline">{new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' }).format(date)}</span>
                                       </div>
                                     </div>
 
@@ -1339,11 +1340,11 @@ export default function App() {
                                                 );
                                               }
                                               return (
-                                                <div className="relative inline-block">
+                                                <div className="relative block w-full max-w-full">
                                                   <select
                                                     value=""
                                                     onChange={(e) => handleKnockoutTeamPick(match.id, 'team1', e.target.value)}
-                                                    className="appearance-none text-[10px] font-black uppercase tracking-[0.2em] text-blue-700 dark:text-sky-300 bg-blue-50 dark:bg-sky-500/10 hover:bg-blue-100 dark:hover:bg-sky-500/20 border border-blue-200 dark:border-sky-500/30 pl-3 pr-7 py-1 rounded-full cursor-pointer outline-none focus:ring-4 focus:ring-blue-500/20 transition-all shadow-sm max-w-[220px]"
+                                                    className="appearance-none w-full text-[10px] font-black uppercase tracking-[0.2em] text-blue-700 dark:text-sky-300 bg-blue-50 dark:bg-sky-500/10 hover:bg-blue-100 dark:hover:bg-sky-500/20 border border-blue-200 dark:border-sky-500/30 pl-2 sm:pl-3 pr-6 sm:pr-7 py-1 rounded-full cursor-pointer outline-none focus:ring-4 focus:ring-blue-500/20 transition-all shadow-sm truncate"
                                                   >
                                                     <option value="">{t1Source.label}</option>
                                                     {t1Source.candidates.map(t => (
@@ -1358,11 +1359,11 @@ export default function App() {
                                               ? `Chọn đội bảng ${sourceGroups[0]}`
                                               : `Chọn từ ${sourceGroups.length} bảng (${sourceGroups.join('/')})`;
                                             return (
-                                              <div className="relative inline-block">
+                                              <div className="relative block w-full max-w-full">
                                                 <select
                                                   value=""
                                                   onChange={(e) => handleKnockoutTeamPick(match.id, 'team1', e.target.value)}
-                                                  className="appearance-none text-[10px] font-black uppercase tracking-[0.2em] text-blue-700 dark:text-sky-300 bg-blue-50 dark:bg-sky-500/10 hover:bg-blue-100 dark:hover:bg-sky-500/20 border border-blue-200 dark:border-sky-500/30 pl-3 pr-7 py-1 rounded-full cursor-pointer outline-none focus:ring-4 focus:ring-blue-500/20 transition-all shadow-sm max-w-[200px]"
+                                                  className="appearance-none w-full text-[10px] font-black uppercase tracking-[0.2em] text-blue-700 dark:text-sky-300 bg-blue-50 dark:bg-sky-500/10 hover:bg-blue-100 dark:hover:bg-sky-500/20 border border-blue-200 dark:border-sky-500/30 pl-2 sm:pl-3 pr-6 sm:pr-7 py-1 rounded-full cursor-pointer outline-none focus:ring-4 focus:ring-blue-500/20 transition-all shadow-sm truncate"
                                                 >
                                                   <option value="">{labelText}</option>
                                                   {sourceGroups.map(g => {
@@ -1444,11 +1445,11 @@ export default function App() {
                                                 );
                                               }
                                               return (
-                                                <div className="relative inline-block">
+                                                <div className="relative block w-full max-w-full">
                                                   <select
                                                     value=""
                                                     onChange={(e) => handleKnockoutTeamPick(match.id, 'team2', e.target.value)}
-                                                    className="appearance-none text-[10px] font-black uppercase tracking-[0.2em] text-[#8A1538] dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 border border-rose-200 dark:border-rose-500/30 pl-3 pr-7 py-1 rounded-full cursor-pointer outline-none focus:ring-4 focus:ring-[#8A1538]/20 transition-all shadow-sm max-w-[220px]"
+                                                    className="appearance-none w-full text-[10px] font-black uppercase tracking-[0.2em] text-[#8A1538] dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 border border-rose-200 dark:border-rose-500/30 pl-2 sm:pl-3 pr-6 sm:pr-7 py-1 rounded-full cursor-pointer outline-none focus:ring-4 focus:ring-[#8A1538]/20 transition-all shadow-sm truncate"
                                                   >
                                                     <option value="">{t2Source.label}</option>
                                                     {t2Source.candidates.map(t => (
@@ -1463,11 +1464,11 @@ export default function App() {
                                               ? `Chọn đội bảng ${sourceGroups[0]}`
                                               : `Chọn từ ${sourceGroups.length} bảng (${sourceGroups.join('/')})`;
                                             return (
-                                              <div className="relative inline-block">
+                                              <div className="relative block w-full max-w-full">
                                                 <select
                                                   value=""
                                                   onChange={(e) => handleKnockoutTeamPick(match.id, 'team2', e.target.value)}
-                                                  className="appearance-none text-[10px] font-black uppercase tracking-[0.2em] text-[#8A1538] dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 border border-rose-200 dark:border-rose-500/30 pl-3 pr-7 py-1 rounded-full cursor-pointer outline-none focus:ring-4 focus:ring-[#8A1538]/20 transition-all shadow-sm max-w-[200px]"
+                                                  className="appearance-none w-full text-[10px] font-black uppercase tracking-[0.2em] text-[#8A1538] dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 border border-rose-200 dark:border-rose-500/30 pl-2 sm:pl-3 pr-6 sm:pr-7 py-1 rounded-full cursor-pointer outline-none focus:ring-4 focus:ring-[#8A1538]/20 transition-all shadow-sm truncate"
                                                 >
                                                   <option value="">{labelText}</option>
                                                   {sourceGroups.map(g => {
