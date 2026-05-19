@@ -2033,11 +2033,11 @@ export default function App() {
                           <h3 className="font-display text-3xl font-black text-slate-900 dark:text-white italic tracking-tight">Kết Quả Phân Nhóm</h3>
                           <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-[0.2em] mt-1">Hệ thống chia bảng đấu công bằng</p>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
                           {assignmentHistories.length > 0 && (
-                            <div className="relative group/select">
+                            <div className="relative group/select w-full sm:w-auto">
                               <select 
-                                className="appearance-none bg-slate-50 dark:bg-[#0A0A0A] border-2 border-slate-100 dark:border-slate-800 rounded-2xl pl-6 pr-12 py-3.5 text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 outline-none focus:border-[#8A1538] focus:ring-8 focus:ring-[#8A1538]/5 transition-all cursor-pointer"
+                                className="appearance-none w-full sm:w-auto bg-slate-50 dark:bg-[#0A0A0A] border-2 border-slate-100 dark:border-slate-800 rounded-2xl pl-4 sm:pl-6 pr-10 sm:pr-12 py-3 sm:py-3.5 text-[11px] sm:text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 outline-none focus:border-[#8A1538] focus:ring-8 focus:ring-[#8A1538]/5 transition-all cursor-pointer"
                                 onChange={(e) => {
                                   const history = assignmentHistories.find(h => h.id === e.target.value);
                                   if (history) {
@@ -2052,12 +2052,16 @@ export default function App() {
                                   <option key={h.id} value={h.id}>{h.name.toUpperCase()}</option>
                                 ))}
                               </select>
-                              <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-90" />
+                              <ChevronRight className="absolute right-3.5 sm:right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-90 pointer-events-none" />
                             </div>
                           )}
-                          <div className="bg-slate-900 dark:bg-white px-5 py-3.5 rounded-2xl shadow-lg ring-4 ring-slate-100 dark:ring-white/5">
-                            <span className="text-[10px] font-black uppercase text-white dark:text-slate-900 tracking-[0.2em] whitespace-nowrap">
-                              {Object.keys(groupAssignments).length} BẢNG ĐÃ CHIA
+                          <div className="flex items-center gap-2.5 bg-slate-900 dark:bg-white px-4 sm:px-5 py-3 sm:py-3.5 rounded-2xl shadow-lg ring-4 ring-slate-100 dark:ring-white/5 w-full sm:w-auto justify-center sm:justify-start">
+                            <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-[#8A1538]/15 dark:bg-[#8A1538]/20 shrink-0">
+                              <Shuffle className="w-3.5 h-3.5 text-rose-300 dark:text-[#8A1538]" />
+                            </span>
+                            <span className="flex items-baseline gap-1.5 whitespace-nowrap">
+                              <span className="font-display font-black text-base sm:text-lg text-white dark:text-slate-900 leading-none">{Object.keys(groupAssignments).length}</span>
+                              <span className="text-[9px] sm:text-[10px] font-black uppercase text-white/60 dark:text-slate-500 tracking-[0.2em]">/ {groupsList.length} bảng đã chia</span>
                             </span>
                           </div>
                         </div>
