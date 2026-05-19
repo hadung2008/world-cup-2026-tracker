@@ -61,6 +61,7 @@ export default function App() {
   const [selectedGroup, setSelectedGroup] = useState<string>('A');
   const [matchView, setMatchView] = useState<'by_date' | 'by_group' | 'knockout'>('by_group');
   const [selectedKnockoutStage, setSelectedKnockoutStage] = useState<KnockoutStage>('Vòng 1/16');
+  const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const [playersInput, setPlayersInput] = useState<string>('');
   const [players, setPlayers] = useState<string[]>([]);
   const [groupAssignments, setGroupAssignments] = useState<Record<string, { group1: string[], group2: string[] }>>({});
@@ -689,11 +690,11 @@ export default function App() {
                     <p className="text-slate-500 dark:text-slate-400 font-medium text-lg max-w-xl">Hành trình chinh phục vinh quang tại Bắc Mỹ 2026</p>
                   </div>
 
-                  <div className="relative bg-gradient-to-br from-white to-slate-50 dark:from-[#141414] dark:to-[#0E0E0E] p-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] inline-flex gap-1 backdrop-blur-md">
+                  <div className="relative bg-gradient-to-br from-white to-slate-50 dark:from-[#141414] dark:to-[#0E0E0E] p-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] grid grid-cols-3 sm:inline-flex gap-1 backdrop-blur-md w-full md:w-auto">
                     {[
-                      { id: 'by_group', label: 'Theo Bảng', sub: 'Group', icon: Trophy, iconColor: 'text-amber-500', iconBg: 'bg-amber-50 dark:bg-amber-500/15', iconHoverBg: 'group-hover/tab:bg-amber-100 dark:group-hover/tab:bg-amber-500/25' },
-                      { id: 'by_date', label: 'Theo Ngày', sub: 'Daily', icon: Calendar, iconColor: 'text-sky-500', iconBg: 'bg-sky-50 dark:bg-sky-500/15', iconHoverBg: 'group-hover/tab:bg-sky-100 dark:group-hover/tab:bg-sky-500/25' },
-                      { id: 'knockout', label: 'Loại Trực Tiếp', sub: 'Knockout', icon: Shuffle, iconColor: 'text-emerald-500', iconBg: 'bg-emerald-50 dark:bg-emerald-500/15', iconHoverBg: 'group-hover/tab:bg-emerald-100 dark:group-hover/tab:bg-emerald-500/25' }
+                      { id: 'by_group', label: 'Theo Bảng', shortLabel: 'Bảng', sub: 'Group', icon: Trophy, iconColor: 'text-amber-500', iconBg: 'bg-amber-50 dark:bg-amber-500/15', iconHoverBg: 'group-hover/tab:bg-amber-100 dark:group-hover/tab:bg-amber-500/25' },
+                      { id: 'by_date', label: 'Theo Ngày', shortLabel: 'Ngày', sub: 'Daily', icon: Calendar, iconColor: 'text-sky-500', iconBg: 'bg-sky-50 dark:bg-sky-500/15', iconHoverBg: 'group-hover/tab:bg-sky-100 dark:group-hover/tab:bg-sky-500/25' },
+                      { id: 'knockout', label: 'Loại Trực Tiếp', shortLabel: 'Loại', sub: 'Knockout', icon: Shuffle, iconColor: 'text-emerald-500', iconBg: 'bg-emerald-50 dark:bg-emerald-500/15', iconHoverBg: 'group-hover/tab:bg-emerald-100 dark:group-hover/tab:bg-emerald-500/25' }
                     ].map(view => {
                       const isActive = matchView === view.id;
                       const Icon = view.icon;
@@ -701,7 +702,7 @@ export default function App() {
                       <button
                         key={view.id}
                         onClick={() => setMatchView(view.id as any)}
-                        className={`group/tab relative px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 sm:gap-2.5 ${
+                        className={`group/tab relative px-2 sm:px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2.5 ${
                           isActive 
                             ? 'text-white' 
                             : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -714,13 +715,16 @@ export default function App() {
                             transition={{ type: "spring", bounce: 0.18, duration: 0.55 }}
                           />
                         )}
-                        <span className={`relative z-10 flex items-center justify-center w-6 h-6 rounded-lg transition-all ${
+                        <span className={`relative z-10 flex items-center justify-center w-6 h-6 rounded-lg transition-all shrink-0 ${
                           isActive ? 'bg-white/15 ring-1 ring-white/20' : `${view.iconBg} ${view.iconHoverBg}`
                         }`}>
                           <Icon className={`w-3.5 h-3.5 transition-colors ${isActive ? 'text-white drop-shadow' : view.iconColor}`} />
                         </span>
-                        <span className="relative z-10 flex flex-col items-start leading-none">
-                          <span className="text-[10px] sm:text-[11px] font-black tracking-wider whitespace-nowrap">{view.label}</span>
+                        <span className="relative z-10 flex flex-col items-start leading-none min-w-0">
+                          <span className="text-[10px] sm:text-[11px] font-black tracking-wider whitespace-nowrap">
+                            <span className="sm:hidden">{view.shortLabel}</span>
+                            <span className="hidden sm:inline">{view.label}</span>
+                          </span>
                           <span className={`text-[8px] font-bold tracking-[0.25em] mt-0.5 hidden sm:inline ${isActive ? 'text-white/70' : 'text-slate-400 dark:text-slate-600'}`}>{view.sub}</span>
                         </span>
                       </button>
@@ -1503,43 +1507,186 @@ export default function App() {
                   </div>
                 )}
 
-                {matchView === 'by_date' && (
-                  <div className="space-y-16">
-                    {Object.entries(
-                      [...matches]
-                        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-                        .reduce((acc, m) => {
-                          const dateObj = new Date(m.date);
-                          const dateKey = new Intl.DateTimeFormat('vi-VN', { 
-                            weekday: 'long',
-                            day: 'numeric', 
-                            month: 'long',
-                            timeZone: 'Asia/Ho_Chi_Minh'
-                          }).format(dateObj);
-                          if (!acc[dateKey]) acc[dateKey] = [];
-                          acc[dateKey].push(m);
-                          return acc;
-                        }, {} as Record<string, Match[]>)
-                    ).map(([date, dateMatches]) => (
-                      <div key={date} className="relative">
-                        <div className="sticky top-20 z-10 py-4 bg-slate-50/80 dark:bg-[#0A0A0A]/80 backdrop-blur-sm">
-                          <h2 className="font-display text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-3">
-                            <span className="w-2 h-8 bg-[#8A1538] rounded-full"></span>
-                            {date}
-                          </h2>
+                {matchView === 'by_date' && (() => {
+                  // Group matches by date (YYYY-MM-DD) and sort chronologically
+                  const byDate = [...matches]
+                    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                    .reduce((acc, m) => {
+                      const d = new Date(m.date);
+                      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                      if (!acc[key]) acc[key] = [];
+                      acc[key].push(m);
+                      return acc;
+                    }, {} as Record<string, Match[]>);
+                  const dateKeys = Object.keys(byDate);
+                  if (!dateKeys.length) return null;
+
+                  // Pick a default tab: today if available, else first upcoming, else first
+                  const todayKey = (() => {
+                    const t = new Date();
+                    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+                  })();
+                  const defaultKey = dateKeys.includes(todayKey)
+                    ? todayKey
+                    : (dateKeys.find(k => k >= todayKey) || dateKeys[0]);
+                  const activeKey = selectedDateKey && byDate[selectedDateKey] ? selectedDateKey : defaultKey;
+                  const dateMatches = byDate[activeKey] || [];
+                  const activeIdx = dateKeys.indexOf(activeKey);
+
+                  const weekdayShort = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+                  const monthShort = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
+
+                  const parseKey = (k: string) => {
+                    const [y, m, d] = k.split('-').map(Number);
+                    return new Date(y, m - 1, d);
+                  };
+                  const activeDateObj = parseKey(activeKey);
+                  const finishedCount = dateMatches.filter(m => m.status === 'finished').length;
+
+                  return (
+                    <div className="space-y-8">
+                      {/* Horizontal day tabs */}
+                      <div className="relative">
+                        <div className="flex items-center gap-2 mb-3">
+                          <button
+                            type="button"
+                            onClick={() => activeIdx > 0 && setSelectedDateKey(dateKeys[activeIdx - 1])}
+                            disabled={activeIdx <= 0}
+                            className="w-9 h-9 rounded-xl bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-500 hover:text-[#8A1538] hover:border-[#8A1538]/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all shrink-0"
+                            aria-label="Ngày trước"
+                          >
+                            <ChevronLeft className="w-4 h-4" />
+                          </button>
+                          <div
+                            id="date-tabs-scroll"
+                            className="flex-1 flex items-center gap-2 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-2 -mb-2"
+                            style={{ scrollbarWidth: 'none' }}
+                          >
+                            {dateKeys.map((key) => {
+                              const isActive = key === activeKey;
+                              const d = parseKey(key);
+                              const wd = weekdayShort[d.getDay()];
+                              const dayNum = d.getDate();
+                              const monNum = d.getMonth() + 1;
+                              const isToday = key === todayKey;
+                              const dayMatches = byDate[key];
+                              const totalCount = dayMatches.length;
+                              const doneCount = dayMatches.filter(m => m.status === 'finished').length;
+                              const allDone = doneCount === totalCount;
+                              return (
+                                <button
+                                  key={key}
+                                  type="button"
+                                  onClick={() => setSelectedDateKey(key)}
+                                  className={`relative snap-start shrink-0 min-w-[78px] px-4 py-2.5 rounded-2xl border-2 transition-all duration-300 group/dt ${
+                                    isActive
+                                      ? 'bg-gradient-to-br from-[#A41A45] via-[#8A1538] to-[#5C0E25] text-white border-transparent shadow-[0_12px_28px_-8px_rgba(138,21,56,0.55)] -translate-y-0.5'
+                                      : 'bg-white dark:bg-[#141414] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-[#8A1538]/30 hover:bg-rose-50/40 dark:hover:bg-rose-500/5'
+                                  }`}
+                                >
+                                  {isActive && (
+                                    <motion.div
+                                      layoutId="date-tab-pill"
+                                      className="absolute inset-0 rounded-2xl ring-2 ring-white/30 pointer-events-none"
+                                      transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+                                    />
+                                  )}
+                                  <div className="relative flex flex-col items-center leading-tight">
+                                    <span className={`text-[9px] font-black uppercase tracking-[0.22em] ${isActive ? 'text-white/80' : 'text-slate-400 dark:text-slate-500'}`}>
+                                      {wd}
+                                    </span>
+                                    <span className="font-display font-black text-xl mt-0.5">{dayNum}</span>
+                                    <span className={`text-[9px] font-bold uppercase tracking-wider mt-0.5 ${isActive ? 'text-white/70' : 'text-slate-400 dark:text-slate-500'}`}>
+                                      Th{monNum}
+                                    </span>
+                                  </div>
+                                  {/* Top-right indicator */}
+                                  {isToday && (
+                                    <span className={`absolute -top-1.5 -right-1.5 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full ring-2 ${isActive ? 'bg-amber-300 text-amber-900 ring-white/40' : 'bg-amber-400 text-amber-900 ring-white dark:ring-[#0A0A0A]'}`}>
+                                      Nay
+                                    </span>
+                                  )}
+                                  {/* Bottom badge: match count / status */}
+                                  <span className={`absolute -bottom-1.5 left-1/2 -translate-x-1/2 text-[9px] font-black px-1.5 py-0.5 rounded-full ring-2 whitespace-nowrap ${
+                                    isActive
+                                      ? 'bg-white text-[#8A1538] ring-[#8A1538]/30'
+                                      : allDone
+                                      ? 'bg-emerald-500 text-white ring-white dark:ring-[#0A0A0A]'
+                                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 ring-white dark:ring-[#0A0A0A]'
+                                  }`}>
+                                    {allDone && !isActive ? '✓' : `${doneCount}/${totalCount}`}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => activeIdx < dateKeys.length - 1 && setSelectedDateKey(dateKeys[activeIdx + 1])}
+                            disabled={activeIdx >= dateKeys.length - 1}
+                            className="w-9 h-9 rounded-xl bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-500 hover:text-[#8A1538] hover:border-[#8A1538]/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all shrink-0"
+                            aria-label="Ngày sau"
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Active day header */}
+                      <motion.div
+                        key={activeKey}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.35, ease: 'easeOut' }}
+                        className="space-y-8"
+                      >
+                        <div className="flex flex-wrap items-end justify-between gap-4">
+                          <div className="flex items-center gap-4">
+                            <div className="relative">
+                              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#A41A45] via-[#8A1538] to-[#5C0E25] flex flex-col items-center justify-center text-white shadow-[0_12px_28px_-8px_rgba(138,21,56,0.55)] rotate-3">
+                                <span className="text-[9px] font-black uppercase tracking-[0.22em] opacity-80 leading-none">{weekdayShort[activeDateObj.getDay()]}</span>
+                                <span className="font-display font-black text-2xl leading-none mt-1">{activeDateObj.getDate()}</span>
+                              </div>
+                              {activeKey === todayKey && (
+                                <span className="absolute -top-2 -right-2 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400 text-amber-900 ring-2 ring-white dark:ring-[#0A0A0A]">Hôm nay</span>
+                              )}
+                            </div>
+                            <div>
+                              <h2 className="font-display text-3xl sm:text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-none">
+                                {monthShort[activeDateObj.getMonth()]}
+                              </h2>
+                              <p className="text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-[0.3em] mt-2">
+                                {new Intl.DateTimeFormat('vi-VN', { weekday: 'long' }).format(activeDateObj)}, {activeDateObj.getDate()} {monthShort[activeDateObj.getMonth()].toLowerCase()} {activeDateObj.getFullYear()}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border bg-slate-50 dark:bg-[#1A1A1A] text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700">
+                              {dateMatches.length} trận
+                            </span>
+                            <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border ${
+                              finishedCount === dateMatches.length
+                                ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20'
+                                : finishedCount > 0
+                                ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-500/20'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                            }`}>
+                              {finishedCount === dateMatches.length ? 'Đã xong' : `${finishedCount}/${dateMatches.length} hoàn thành`}
+                            </span>
+                          </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
-                          {(dateMatches as Match[]).map(match => {
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                          {dateMatches.map(match => {
                             const mDate = new Date(match.date);
                             const groupColor = getGroupColor(match.group);
                             const t1Color = getTeamColor(match.team1Id);
                             const t2Color = getTeamColor(match.team2Id);
                             const groupAssignment = groupAssignments[match.group] || { group1: [], group2: [] };
                             return (
-                              <motion.div 
+                              <motion.div
                                 whileHover={{ y: -4 }}
-                                key={match.id} 
+                                key={match.id}
                                 className={`relative bg-white dark:bg-[#141414] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm hover:shadow-[0_20px_50px_rgb(0,0,0,0.06)] transition-all duration-300 overflow-hidden group hover:border-slate-300 dark:hover:border-slate-700`}
                               >
                                 <div className={`absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b ${groupColor.from} ${groupColor.to} opacity-70 group-hover:opacity-100 transition-opacity duration-300`}></div>
@@ -1568,8 +1715,8 @@ export default function App() {
                                           )}
                                         </div>
                                       </div>
-                                      <input 
-                                        type="number" 
+                                      <input
+                                        type="number"
                                         value={match.score1 ?? ''}
                                         className={`w-12 h-12 text-center bg-slate-50 dark:bg-[#1A1A1A] border border-slate-200 dark:border-slate-700 hover:border-slate-300 hover:dark:border-slate-600 rounded-xl focus:border-transparent ${t1Color.ring} outline-none font-display font-black text-xl transition-all shadow-inner text-slate-900 dark:text-white shrink-0 ml-2`}
                                         placeholder="-"
@@ -1592,8 +1739,8 @@ export default function App() {
                                           )}
                                         </div>
                                       </div>
-                                      <input 
-                                        type="number" 
+                                      <input
+                                        type="number"
                                         value={match.score2 ?? ''}
                                         className={`w-12 h-12 text-center bg-slate-50 dark:bg-[#1A1A1A] border border-slate-200 dark:border-slate-700 hover:border-slate-300 hover:dark:border-slate-600 rounded-xl focus:border-transparent ${t2Color.ring} outline-none font-display font-black text-xl transition-all shadow-inner text-slate-900 dark:text-white shrink-0 ml-2`}
                                         placeholder="-"
@@ -1619,10 +1766,10 @@ export default function App() {
                             );
                           })}
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      </motion.div>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
