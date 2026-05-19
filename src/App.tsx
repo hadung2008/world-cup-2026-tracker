@@ -2129,27 +2129,27 @@ export default function App() {
                                   <motion.div 
                                     whileHover={{ y: -4 }}
                                     key={name} 
-                                    className={`relative bg-white/5 backdrop-blur-sm border border-white/10 p-5 rounded-3xl transition-all hover:bg-white/10 group/stat ${podium ? `${podium.ring} ${podium.glow}` : ''}`}
+                                    className={`relative bg-white/5 backdrop-blur-sm border border-white/10 p-3 sm:p-5 rounded-2xl sm:rounded-3xl transition-all hover:bg-white/10 group/stat ${podium ? `${podium.ring} ${podium.glow}` : ''}`}
                                   >
                                     {podium && (
-                                      <div className={`absolute -top-2 -right-2 w-8 h-8 rounded-full ${podium.badge} flex items-center justify-center text-sm font-black shadow-lg ring-2 ring-slate-900`}>
+                                      <div className={`absolute -top-2 -right-2 w-7 h-7 sm:w-8 sm:h-8 rounded-full ${podium.badge} flex items-center justify-center text-xs sm:text-sm font-black shadow-lg ring-2 ring-slate-900`}>
                                         {podium.label}
                                       </div>
                                     )}
-                                    <div className="flex items-center justify-between mb-1">
-                                      <div className="flex items-center gap-2 min-w-0">
-                                        <div className={`w-6 h-6 rounded-full bg-gradient-to-br ${getAvatarColor(name)} flex items-center justify-center text-white text-[10px] font-black shadow-sm shrink-0`}>
-                                          {name.charAt(0).toUpperCase()}
-                                        </div>
-                                        <p className="text-[10px] font-black uppercase text-slate-300 tracking-widest truncate">{name}</p>
+                                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                                      <div className={`w-6 h-6 rounded-full bg-gradient-to-br ${getAvatarColor(name)} flex items-center justify-center text-white text-[10px] font-black shadow-sm shrink-0`}>
+                                        {name.charAt(0).toUpperCase()}
                                       </div>
-                                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider shrink-0">{total} tr</span>
+                                      <p className="text-[10px] font-black uppercase text-slate-300 tracking-widest truncate flex-1 min-w-0">{name}</p>
                                     </div>
-                                    <div className="flex items-baseline gap-1 mt-2">
-                                       <span className={`text-2xl font-display font-black tracking-tight ${amount > 0 ? 'text-emerald-400' : amount < 0 ? 'text-[#D6284B]' : 'text-slate-400'}`}>
-                                         {amount > 0 ? `+${amount}` : amount}
-                                       </span>
-                                       <span className="text-[10px] font-bold text-slate-600 uppercase">k</span>
+                                    <div className="mt-1.5 flex items-baseline justify-between gap-2">
+                                       <div className="flex items-baseline gap-1 min-w-0">
+                                         <span className={`text-xl sm:text-2xl font-display font-black tracking-tight ${amount > 0 ? 'text-emerald-400' : amount < 0 ? 'text-[#D6284B]' : 'text-slate-400'}`}>
+                                           {amount > 0 ? `+${amount}` : amount}
+                                         </span>
+                                         <span className="text-[10px] font-bold text-slate-600 uppercase">k</span>
+                                       </div>
+                                       <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider shrink-0">{total} tr</span>
                                     </div>
                                     {/* Progress bar */}
                                     <div className="mt-2 h-1 bg-white/5 rounded-full overflow-hidden">
@@ -2158,17 +2158,17 @@ export default function App() {
                                         style={{ width: `${barPct}%` }}
                                       ></div>
                                     </div>
-                                    <div className="mt-3 pt-3 border-t border-white/5 grid grid-cols-3 gap-1 text-center">
-                                      <div className="flex flex-col">
-                                        <span className="text-[9px] font-black uppercase tracking-wider text-emerald-400/70">Thắng</span>
+                                    <div className="mt-2.5 sm:mt-3 pt-2.5 sm:pt-3 border-t border-white/5 grid grid-cols-3 gap-0.5 sm:gap-1 text-center">
+                                      <div className="flex flex-col min-w-0">
+                                        <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-tight sm:tracking-wider text-emerald-400/70">Thắng</span>
                                         <span className="text-sm font-mono font-black text-emerald-400">{s.win}</span>
                                       </div>
-                                      <div className="flex flex-col border-x border-white/5">
-                                        <span className="text-[9px] font-black uppercase tracking-wider text-amber-400/70">Hòa</span>
+                                      <div className="flex flex-col min-w-0 border-x border-white/5">
+                                        <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-tight sm:tracking-wider text-amber-400/70">Hòa</span>
                                         <span className="text-sm font-mono font-black text-amber-400">{s.draw}</span>
                                       </div>
-                                      <div className="flex flex-col">
-                                        <span className="text-[9px] font-black uppercase tracking-wider text-[#D6284B]/80">Thua</span>
+                                      <div className="flex flex-col min-w-0">
+                                        <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-tight sm:tracking-wider text-[#D6284B]/80">Thua</span>
                                         <span className="text-sm font-mono font-black text-[#D6284B]">{s.loss}</span>
                                       </div>
                                     </div>
