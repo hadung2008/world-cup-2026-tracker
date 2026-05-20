@@ -780,8 +780,10 @@ export default function App() {
                             const extractGroupLetters = (placeholder?: string): string[] => {
                               if (!placeholder) return [];
                               if (/^(Thắng|Thua)/i.test(placeholder)) return [];
-                              const all = Array.from(placeholder.matchAll(/[A-L]/g)).map(m => m[0].toUpperCase());
-                              return Array.from(new Set(all));
+                              // Chỉ nhận chuỗi chữ cái đứng ngay sau từ khóa "bảng" (tránh khu nhận nhầm H trong "Hạng", B trong "Bán"...)
+                              const m = placeholder.match(/bảng\s+([A-L](?:\s*\/\s*[A-L])*)/i);
+                              if (!m) return [];
+                              return Array.from(new Set(m[1].split('/').map(s => s.trim().toUpperCase()).filter(Boolean)));
                             };
                             const extractToken = (placeholder?: string): string => {
                               if (!placeholder) return '?';
@@ -1165,8 +1167,9 @@ export default function App() {
                                 if (!placeholder) return [];
                                 // Knockout-source placeholders ("Thắng/Thua ...") không phải tham chiếu bảng
                                 if (/^(Thắng|Thua)/i.test(placeholder)) return [];
-                                const all = Array.from(placeholder.matchAll(/[A-L]/g)).map(m => m[0].toUpperCase());
-                                return Array.from(new Set(all));
+                                const m = placeholder.match(/bảng\s+([A-L](?:\s*\/\s*[A-L])*)/i);
+                                if (!m) return [];
+                                return Array.from(new Set(m[1].split('/').map(s => s.trim().toUpperCase()).filter(Boolean)));
                               };
                               const extractToken = (placeholder?: string): string => {
                                 if (!placeholder) return '?';
@@ -1684,6 +1687,118 @@ export default function App() {
                             const t1Color = getTeamColor(match.team1Id);
                             const t2Color = getTeamColor(match.team2Id);
                             const groupAssignment = groupAssignments[match.group] || { group1: [], group2: [] };
+                            const isKnockout = !groupsList.includes(match.group);
+
+                            // Theme per knockout round
+                            const knockoutThemes: Record<string, { from: string; via: string; to: string; chip: string; ring: string; glow: string; label: string; subLabel: string; icon: typeof Trophy }> = {
+                              'Vòng 1/16': { from: 'from-sky-600', via: 'via-sky-500', to: 'to-indigo-600', chip: 'bg-sky-500/15 text-sky-100 ring-sky-300/30', ring: 'ring-sky-400/40', glow: 'shadow-[0_18px_40px_-12px_rgba(2,132,199,0.55)]', label: 'Vòng 1/16', subLabel: 'Round of 32', icon: Shuffle },
+                              'Vòng 1/8':  { from: 'from-cyan-600', via: 'via-teal-500', to: 'to-emerald-600', chip: 'bg-cyan-500/15 text-cyan-100 ring-cyan-300/30', ring: 'ring-cyan-400/40', glow: 'shadow-[0_18px_40px_-12px_rgba(8,145,178,0.55)]', label: 'Vòng 1/8', subLabel: 'Round of 16', icon: Shuffle },
+                              'Tứ kết':    { from: 'from-violet-600', via: 'via-purple-500', to: 'to-fuchsia-600', chip: 'bg-violet-500/15 text-violet-100 ring-violet-300/30', ring: 'ring-violet-400/40', glow: 'shadow-[0_18px_40px_-12px_rgba(124,58,237,0.55)]', label: 'Tứ kết', subLabel: 'Quarter-final', icon: Trophy },
+                              'Bán kết':   { from: 'from-fuchsia-600', via: 'via-pink-500', to: 'to-rose-600', chip: 'bg-fuchsia-500/15 text-fuchsia-100 ring-fuchsia-300/30', ring: 'ring-fuchsia-400/40', glow: 'shadow-[0_18px_40px_-12px_rgba(192,38,211,0.55)]', label: 'Bán kết', subLabel: 'Semi-final', icon: Trophy },
+                              'Tranh hạng 3': { from: 'from-amber-600', via: 'via-orange-500', to: 'to-rose-500', chip: 'bg-amber-500/15 text-amber-100 ring-amber-300/30', ring: 'ring-amber-400/40', glow: 'shadow-[0_18px_40px_-12px_rgba(234,88,12,0.55)]', label: 'Tranh hạng 3', subLabel: 'Bronze Final', icon: Trophy },
+                              'Chung kết': { from: 'from-amber-500', via: 'via-yellow-500', to: 'to-[#8A1538]', chip: 'bg-amber-400/20 text-amber-100 ring-amber-300/40', ring: 'ring-amber-400/50', glow: 'shadow-[0_22px_50px_-12px_rgba(217,119,6,0.7)]', label: 'Chung kết', subLabel: 'Grand Final', icon: Trophy },
+                            };
+                            const ko = isKnockout ? (knockoutThemes[match.group] || knockoutThemes['Vòng 1/16']) : null;
+
+                            if (isKnockout && ko) {
+                              const KoIcon = ko.icon;
+                              const team1Name = getTeamName(match.team1Id, match.team1Placeholder, false);
+                              const team2Name = getTeamName(match.team2Id, match.team2Placeholder, false);
+                              const isFinal = match.group === 'Chung kết';
+                              return (
+                                <motion.div
+                                  whileHover={{ y: -4 }}
+                                  key={match.id}
+                                  className={`relative bg-white dark:bg-[#141414] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm hover:shadow-[0_24px_60px_rgb(0,0,0,0.10)] transition-all duration-300 overflow-hidden group`}
+                                >
+                                  {/* Banner */}
+                                  <div className={`relative bg-gradient-to-br ${ko.from} ${ko.via} ${ko.to} px-5 py-4 text-white overflow-hidden`}>
+                                    {/* decorative trophy */}
+                                    <KoIcon className="absolute -right-3 -bottom-4 w-24 h-24 opacity-15 -rotate-12" />
+                                    {/* sheen */}
+                                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out"></div>
+                                    <div className="relative z-10 flex items-start justify-between gap-3">
+                                      <div className="min-w-0">
+                                        <div className="flex items-center gap-2">
+                                          <span className={`text-[9px] font-black uppercase tracking-[0.22em] px-2 py-0.5 rounded-full ring-1 backdrop-blur-sm ${ko.chip}`}>{match.id}</span>
+                                          {isFinal && <span className="text-[9px] font-black uppercase tracking-[0.22em] px-2 py-0.5 rounded-full bg-amber-300 text-amber-900 ring-1 ring-amber-200">Final</span>}
+                                        </div>
+                                        <h3 className="font-display font-black italic text-2xl leading-none mt-2 uppercase tracking-tight">{ko.label}</h3>
+                                        <p className="text-[9px] font-bold uppercase tracking-[0.28em] opacity-80 mt-1.5">{ko.subLabel}</p>
+                                      </div>
+                                      <div className="shrink-0 text-right">
+                                        <div className="text-[9px] font-bold uppercase tracking-[0.25em] opacity-75">Venue</div>
+                                        <div className="text-[11px] font-black uppercase tracking-wider mt-0.5 truncate max-w-[110px]">{match.location}</div>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Body */}
+                                  <div className="p-5">
+                                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+                                      {/* Team 1 */}
+                                      <div className="flex flex-col items-center text-center gap-2 min-w-0">
+                                        <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${t1Color.bgGradient} flex items-center justify-center text-3xl shadow-[inset_0_-2px_6px_rgba(0,0,0,0.08),0_4px_10px_rgba(0,0,0,0.06)] ring-2 ring-white dark:ring-[#141414]`}>
+                                          {teams.find(t => t.id === match.team1Id)?.flag || '🏳️'}
+                                        </div>
+                                        <span
+                                          className={`font-display font-black text-xs leading-tight line-clamp-2 ${match.team1Id ? t1Color.text : 'text-slate-400 dark:text-slate-500 italic'}`}
+                                          title={team1Name}
+                                        >
+                                          {team1Name}
+                                        </span>
+                                      </div>
+
+                                      {/* VS / score */}
+                                      <div className="flex flex-col items-center gap-1.5">
+                                        <input
+                                          type="number"
+                                          value={match.score1 ?? ''}
+                                          className={`w-12 h-11 text-center bg-slate-50 dark:bg-[#1A1A1A] border border-slate-200 dark:border-slate-700 hover:border-slate-300 hover:dark:border-slate-600 rounded-xl focus:border-transparent ${t1Color.ring} outline-none font-display font-black text-xl transition-all shadow-inner text-slate-900 dark:text-white`}
+                                          placeholder="-"
+                                          onChange={(e) => handleScoreChange(match.id, e.target.value, match.score2?.toString() || '')}
+                                        />
+                                        <span className="text-[9px] font-black tracking-[0.3em] text-slate-400 dark:text-slate-500 uppercase">vs</span>
+                                        <input
+                                          type="number"
+                                          value={match.score2 ?? ''}
+                                          className={`w-12 h-11 text-center bg-slate-50 dark:bg-[#1A1A1A] border border-slate-200 dark:border-slate-700 hover:border-slate-300 hover:dark:border-slate-600 rounded-xl focus:border-transparent ${t2Color.ring} outline-none font-display font-black text-xl transition-all shadow-inner text-slate-900 dark:text-white`}
+                                          placeholder="-"
+                                          onChange={(e) => handleScoreChange(match.id, match.score1?.toString() || '', e.target.value)}
+                                        />
+                                      </div>
+
+                                      {/* Team 2 */}
+                                      <div className="flex flex-col items-center text-center gap-2 min-w-0">
+                                        <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${t2Color.bgGradient} flex items-center justify-center text-3xl shadow-[inset_0_-2px_6px_rgba(0,0,0,0.08),0_4px_10px_rgba(0,0,0,0.06)] ring-2 ring-white dark:ring-[#141414]`}>
+                                          {teams.find(t => t.id === match.team2Id)?.flag || '🏳️'}
+                                        </div>
+                                        <span
+                                          className={`font-display font-black text-xs leading-tight line-clamp-2 ${match.team2Id ? t2Color.text : 'text-slate-400 dark:text-slate-500 italic'}`}
+                                          title={team2Name}
+                                        >
+                                          {team2Name}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Footer */}
+                                    <div className="mt-5 pt-3 border-t border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                                      {match.status !== 'finished' ? (
+                                        <span className="font-mono text-xs font-bold tracking-tight bg-slate-100 dark:bg-[#1A1A1A] text-slate-700 dark:text-slate-300 px-2 py-1 rounded-md inline-flex items-center gap-1.5">
+                                          <Calendar className="w-3 h-3 opacity-60" />
+                                          {new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }).format(mDate)}
+                                        </span>
+                                      ) : (
+                                        <span className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded-md uppercase tracking-wider">Đã xong</span>
+                                      )}
+                                      <span className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-400 dark:text-slate-500">Knockout</span>
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              );
+                            }
+
                             return (
                               <motion.div
                                 whileHover={{ y: -4 }}
