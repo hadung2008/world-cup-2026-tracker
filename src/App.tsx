@@ -66,6 +66,10 @@ export default function App() {
   const [players, setPlayers] = useState<string[]>([]);
   const [groupAssignments, setGroupAssignments] = useState<Record<string, { group1: string[], group2: string[] }>>({});
   const [matchAssignments, setMatchAssignments] = useState<Record<string, MatchAssignment>>({});
+  const [assignmentMode, setAssignmentMode] = useState<'by_group' | 'by_match'>(() => {
+    const v = localStorage.getItem('wc2026_assignment_mode');
+    return v === 'by_match' ? 'by_match' : 'by_group';
+  });
   const [penalties, setPenalties] = useState({ win: 0, draw: 0, loss: 0 });
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     return localStorage.getItem('wc2026_theme') === 'dark';
@@ -197,7 +201,17 @@ export default function App() {
     localStorage.setItem('wc2026_players', JSON.stringify(players));
     localStorage.setItem('wc2026_group_assignments', JSON.stringify(groupAssignments));
     localStorage.setItem('wc2026_match_assignments', JSON.stringify(matchAssignments));
-  }, [players, groupAssignments, matchAssignments, isLoaded]);
+    localStorage.setItem('wc2026_assignment_mode', assignmentMode);
+  }, [players, groupAssignments, matchAssignments, assignmentMode, isLoaded]);
+
+  // Lấy assignment hiệu lực cho 1 trận: ưu tiên matchAssignments (per-match), fallback groupAssignments (per-group).
+  const getMatchAssignment = (match: Match): { group1: string[]; group2: string[] } => {
+    const m = matchAssignments[match.id];
+    if (m) return { group1: m.side1, group2: m.side2 };
+    const g = groupAssignments[match.group];
+    if (g) return g;
+    return { group1: [], group2: [] };
+  };
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -273,7 +287,7 @@ export default function App() {
       setMatchAssignments({});
       return;
     }
-    setNewSaveName(`Lần chia ${assignmentHistories.length + 1}`);
+    setNewSaveName(`Lần chia ${assignmentMode === 'by_match' ? 'theo trận' : 'theo bảng'} ${assignmentHistories.length + 1}`);
     setShowSaveModal(true);
   };
 
@@ -290,23 +304,33 @@ export default function App() {
 
     const localGroupsList = Array.from(new Set(teams.map(t => t.group))).sort() as string[];
     const newAssignments: Record<string, { group1: string[], group2: string[] }> = {};
-    localGroupsList.forEach(group => {
-      const split = shuffleAndSplit(playerList);
-      newAssignments[group] = {
-        group1: split.side1,
-        group2: split.side2
-      };
-    });
-    
+    const newMatchAssignments: Record<string, MatchAssignment> = {};
+
+    if (assignmentMode === 'by_match') {
+      // Mỗi trận có 1 cách chia riêng — áp dụng cho cả vòng bảng lẫn vòng knockout.
+      matches.forEach(m => {
+        newMatchAssignments[m.id] = shuffleAndSplit(playerList);
+      });
+    } else {
+      // Mỗi bảng có 1 cách chia, áp dụng cho cả 3 trận.
+      localGroupsList.forEach(group => {
+        const split = shuffleAndSplit(playerList);
+        newAssignments[group] = {
+          group1: split.side1,
+          group2: split.side2,
+        };
+      });
+    }
+
     setGroupAssignments(newAssignments);
-    // Bắt đầu chu kỳ mới: reset assignment của knockout
-    setMatchAssignments({});
+    // Bắt đầu chu kỳ mới: matchAssignments được tái khởi tạo (chứa per-match nếu mode by_match, ngược lại rỗng)
+    setMatchAssignments(newMatchAssignments);
     setAssignmentHistories([...assignmentHistories, {
         id: Date.now().toString(),
         name: newSaveName,
         players: playerList,
         assignments: newAssignments,
-        matchAssignments: {},
+        matchAssignments: newMatchAssignments,
         timestamp: Date.now()
     }]);
     setShowSaveModal(false);
@@ -769,7 +793,7 @@ export default function App() {
                           .filter(m => m.group === selectedGroup)
                           .map(match => {
                             const date = new Date(match.date);
-                            const groupAssignment = groupAssignments[selectedGroup] || { group1: [], group2: [] };
+                            const groupAssignment = getMatchAssignment(match);
                             const groupColor = getGroupColor(match.group);
                             const t1Color = getTeamColor(match.team1Id);
                             const t2Color = getTeamColor(match.team2Id);
@@ -1686,7 +1710,7 @@ export default function App() {
                             const groupColor = getGroupColor(match.group);
                             const t1Color = getTeamColor(match.team1Id);
                             const t2Color = getTeamColor(match.team2Id);
-                            const groupAssignment = groupAssignments[match.group] || { group1: [], group2: [] };
+                            const groupAssignment = getMatchAssignment(match);
                             const isKnockout = !groupsList.includes(match.group);
 
                             // Theme per knockout round
@@ -1996,11 +2020,17 @@ export default function App() {
               const finishedMatches = matches.filter(m => m.status === 'finished').length;
               const totalMatches = matches.length;
               const groupsCount = Object.keys(groupAssignments).length;
+              // Per-match (by_match) mode stats: đếm toàn bộ matchAssignments (gồm cả vòng bảng + knockout)
+              const groupStageMatches = matches.filter(m => groupsList.includes(m.group));
+              const allMatchAssignedCount = matches.filter(m => matchAssignments[m.id]).length;
+              const groupStageAssignedCount = groupStageMatches.filter(m => matchAssignments[m.id]).length;
+              const isPerMatchMode = groupStageAssignedCount > 0 || allMatchAssignedCount > 0;
+              const hasAnyAssignment = groupsCount > 0 || isPerMatchMode;
               const totalPot = (() => {
                 let pot = 0;
                 matches.filter(m => m.status === 'finished').forEach(m => {
-                  const a = groupAssignments[m.group];
-                  if (!a) return;
+                  const a = getMatchAssignment(m);
+                  if (a.group1.length === 0 && a.group2.length === 0) return;
                   const t1Won = (m.score1 || 0) > (m.score2 || 0);
                   const t2Won = (m.score2 || 0) > (m.score1 || 0);
                   const isDraw = !t1Won && !t2Won;
@@ -2030,21 +2060,52 @@ export default function App() {
                       <p className="text-slate-500 dark:text-slate-400 font-medium text-lg max-w-xl">Phân chia anh tài theo từng bảng đấu cạnh tranh</p>
                     </div>
 
-                    <button
-                      onClick={handleRandomizeAssignments}
-                      className="group relative bg-[#8A1538] hover:bg-[#A61A45] text-white px-6 sm:px-8 py-3 sm:py-4 rounded-[2rem] font-black uppercase text-[10px] sm:text-xs tracking-[0.2em] transition-all flex items-center justify-center gap-2 sm:gap-3 overflow-hidden shadow-[0_15px_35px_rgba(138,21,56,0.3)] hover:scale-105 active:scale-95 whitespace-nowrap w-full lg:w-auto"
-                    >
-                      <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                      <Shuffle className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" />
-                      <span>Chia Nhóm Ngẫu Nhiên</span>
-                    </button>
+                    <div className="flex flex-col items-stretch lg:items-end gap-3 w-full lg:w-auto">
+                      {/* Mode selector */}
+                      <div className="inline-flex p-1 rounded-2xl bg-slate-100 dark:bg-[#0F0F0F] border border-slate-200 dark:border-slate-800 self-stretch lg:self-end">
+                        {([
+                          { id: 'by_group', label: 'Theo Bảng', sub: '1 chia / bảng', icon: Users },
+                          { id: 'by_match', label: 'Theo Trận', sub: '1 chia / trận', icon: Shuffle },
+                        ] as const).map(opt => {
+                          const active = assignmentMode === opt.id;
+                          const Icon = opt.icon;
+                          return (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => setAssignmentMode(opt.id)}
+                              className={`relative flex-1 lg:flex-none px-3 sm:px-4 py-2 rounded-xl text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] transition-all flex items-center justify-center gap-1.5 ${
+                                active
+                                  ? 'bg-white dark:bg-[#1A1A1A] text-[#8A1538] dark:text-rose-300 shadow-sm ring-1 ring-[#8A1538]/20'
+                                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                              }`}
+                              title={opt.sub}
+                            >
+                              <Icon className="w-3.5 h-3.5" />
+                              <span>{opt.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <button
+                        onClick={handleRandomizeAssignments}
+                        className="group relative bg-[#8A1538] hover:bg-[#A61A45] text-white px-6 sm:px-8 py-3 sm:py-4 rounded-[2rem] font-black uppercase text-[10px] sm:text-xs tracking-[0.2em] transition-all flex items-center justify-center gap-2 sm:gap-3 overflow-hidden shadow-[0_15px_35px_rgba(138,21,56,0.3)] hover:scale-105 active:scale-95 whitespace-nowrap w-full lg:w-auto"
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <Shuffle className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" />
+                        <span>Chia Nhóm Ngẫu Nhiên</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Stats Strip */}
                   <div className="relative grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-10">
                     {[
                       { label: 'Tuyển thủ', value: playerCount, sub: 'Đang tham gia', icon: Users, grad: 'from-emerald-500 to-teal-600', text: 'text-emerald-600 dark:text-emerald-400' },
-                      { label: 'Bảng đã chia', value: groupsCount, sub: `/ ${groupsList.length} bảng`, icon: Shuffle, grad: 'from-[#8A1538] to-[#D6284B]', text: 'text-[#8A1538] dark:text-rose-400' },
+                      isPerMatchMode
+                        ? { label: 'Trận đã chia', value: allMatchAssignedCount, sub: `/ ${matches.length} trận`, icon: Shuffle, grad: 'from-amber-500 to-orange-600', text: 'text-amber-600 dark:text-amber-400' }
+                        : { label: 'Bảng đã chia', value: groupsCount, sub: `/ ${groupsList.length} bảng`, icon: Shuffle, grad: 'from-[#8A1538] to-[#D6284B]', text: 'text-[#8A1538] dark:text-rose-400' },
                       { label: 'Trận đã đá', value: finishedMatches, sub: `/ ${totalMatches} trận`, icon: Calendar, grad: 'from-blue-500 to-sky-600', text: 'text-blue-600 dark:text-sky-400' },
                       { label: 'Tổng quỹ cược', value: `${totalPot}K`, sub: 'Đã giao dịch', icon: Trophy, grad: 'from-amber-500 to-orange-600', text: 'text-amber-600 dark:text-amber-400' },
                     ].map(s => (
@@ -2159,7 +2220,8 @@ export default function App() {
                                   if (history) {
                                     setPlayers(history.players);
                                     setPlayersInput(history.players.join('\n'));
-                                    setGroupAssignments(history.assignments);
+                                    setGroupAssignments(history.assignments || {});
+                                    setMatchAssignments(history.matchAssignments || {});
                                   }
                                 }}
                               >
@@ -2176,14 +2238,23 @@ export default function App() {
                               <Shuffle className="w-3.5 h-3.5 text-rose-300 dark:text-[#8A1538]" />
                             </span>
                             <span className="flex items-baseline gap-1.5 whitespace-nowrap">
-                              <span className="font-display font-black text-base sm:text-lg text-white dark:text-slate-900 leading-none">{Object.keys(groupAssignments).length}</span>
-                              <span className="text-[9px] sm:text-[10px] font-black uppercase text-white/60 dark:text-slate-500 tracking-[0.2em]">/ {groupsList.length} bảng đã chia</span>
+                              {isPerMatchMode ? (
+                                <>
+                                  <span className="font-display font-black text-base sm:text-lg text-white dark:text-slate-900 leading-none">{allMatchAssignedCount}</span>
+                                  <span className="text-[9px] sm:text-[10px] font-black uppercase text-white/60 dark:text-slate-500 tracking-[0.2em]">/ {matches.length} trận đã chia</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="font-display font-black text-base sm:text-lg text-white dark:text-slate-900 leading-none">{Object.keys(groupAssignments).length}</span>
+                                  <span className="text-[9px] sm:text-[10px] font-black uppercase text-white/60 dark:text-slate-500 tracking-[0.2em]">/ {groupsList.length} bảng đã chia</span>
+                                </>
+                              )}
                             </span>
                           </div>
                         </div>
                       </div>
                       
-                      {Object.keys(groupAssignments).length > 0 ? (
+                      {hasAnyAssignment ? (
                         <div className="space-y-10">
                           {/* Premium Summary Dashboard */}
                           <div className="bg-slate-900 dark:bg-[#1A1A1A] rounded-[2.5rem] p-10 text-white shadow-2xl relative overflow-hidden group/summary">
@@ -2211,8 +2282,8 @@ export default function App() {
                                 };
 
                                 matches.filter(m => m.status === 'finished').forEach(m => {
-                                  const assignment = groupAssignments[m.group];
-                                  if (!assignment) return;
+                                  const assignment = getMatchAssignment(m);
+                                  if (assignment.group1.length === 0 && assignment.group2.length === 0) return;
                                   
                                   const t1Won = (m.score1 || 0) > (m.score2 || 0);
                                   const t2Won = (m.score2 || 0) > (m.score1 || 0);
@@ -2302,8 +2373,10 @@ export default function App() {
                           <div className="flex items-center justify-between gap-4 pt-2">
                             <div className="flex items-center gap-3 flex-wrap">
                               <div className="h-[1px] w-8 bg-slate-200 dark:bg-slate-700"></div>
-                              <span className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 dark:text-slate-500">Chi tiết phân bảng</span>
-                              {showGroupBreakdown && (
+                              <span className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 dark:text-slate-500">
+                                {isPerMatchMode ? 'Chi tiết phân trận theo ngày' : 'Chi tiết phân bảng'}
+                              </span>
+                              {showGroupBreakdown && !isPerMatchMode && (
                                 <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-white/5 px-2 py-1 rounded-full border border-slate-200 dark:border-slate-700">
                                   <ArrowLeftRight className="w-2.5 h-2.5" />
                                   Click vào tên để chuyển nhóm
@@ -2314,13 +2387,178 @@ export default function App() {
                               onClick={() => setShowGroupBreakdown(v => !v)}
                               className="group/btn flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[11px] font-black uppercase tracking-widest shadow-lg hover:shadow-xl ring-4 ring-slate-100 dark:ring-white/5 transition-all hover:-translate-y-0.5"
                             >
-                              <span>{showGroupBreakdown ? 'Ẩn 12 bảng' : 'Xem 12 bảng'}</span>
+                              <span>
+                                {showGroupBreakdown
+                                  ? (isPerMatchMode ? 'Ẩn theo ngày' : 'Ẩn 12 bảng')
+                                  : (isPerMatchMode ? 'Xem theo ngày' : 'Xem 12 bảng')}
+                              </span>
                               <ChevronRight className={`w-4 h-4 transition-transform ${showGroupBreakdown ? '-rotate-90' : 'rotate-90'}`} />
                             </button>
                           </div>
 
                           <AnimatePresence initial={false}>
-                          {showGroupBreakdown && (
+                          {showGroupBreakdown && isPerMatchMode && (() => {
+                            // Gom tất cả các trận (vòng bảng + knockout) có matchAssignment theo ngày
+                            const assignedGroupMatches = matches
+                              .filter(m => matchAssignments[m.id])
+                              .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                            const byDate: Record<string, typeof assignedGroupMatches> = {};
+                            assignedGroupMatches.forEach(m => {
+                              const d = new Date(m.date);
+                              const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                              if (!byDate[key]) byDate[key] = [];
+                              byDate[key].push(m);
+                            });
+                            const dateKeys = Object.keys(byDate).sort();
+                            const weekdayShort = ['CN','T2','T3','T4','T5','T6','T7'];
+                            return (
+                              <motion.div
+                                key="by-date-breakdown"
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ duration: 0.3 }}
+                                className="space-y-8 overflow-hidden"
+                              >
+                                {dateKeys.map(key => {
+                                  const dayMatches = byDate[key];
+                                  const d = new Date(dayMatches[0].date);
+                                  return (
+                                    <motion.div
+                                      key={key}
+                                      initial={{ opacity: 0, y: 8 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      className="border border-slate-100 dark:border-slate-800 rounded-3xl overflow-hidden bg-white dark:bg-[#0F0F0F] shadow-sm"
+                                    >
+                                      {/* Date header */}
+                                      <div className="flex items-center gap-4 px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-white dark:from-[#141414] dark:to-[#0F0F0F]">
+                                        <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-[#A41A45] via-[#8A1538] to-[#5C0E25] flex flex-col items-center justify-center text-white shadow-[0_8px_20px_-6px_rgba(138,21,56,0.45)] shrink-0">
+                                          <span className="text-[8px] font-black uppercase tracking-[0.2em] opacity-80 leading-none">{weekdayShort[d.getDay()]}</span>
+                                          <span className="font-display font-black text-base leading-none mt-0.5">{d.getDate()}</span>
+                                        </div>
+                                        <div className="min-w-0">
+                                          <div className="font-display font-black text-base text-slate-800 dark:text-slate-100 uppercase tracking-tight leading-none">
+                                            {new Intl.DateTimeFormat('vi-VN', { weekday: 'long' }).format(d)}, {d.getDate()}/{d.getMonth() + 1}/{d.getFullYear()}
+                                          </div>
+                                          <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mt-1">
+                                            {dayMatches.length} trận đã chia
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* Matches */}
+                                      <div className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                                        {dayMatches.map(m => {
+                                          const a = matchAssignments[m.id]!;
+                                          const gc = getGroupColor(m.group);
+                                          const t1 = teams.find(t => t.id === m.team1Id);
+                                          const t2 = teams.find(t => t.id === m.team2Id);
+                                          const t1Name = getTeamName(m.team1Id, m.team1Placeholder, false);
+                                          const t2Name = getTeamName(m.team2Id, m.team2Placeholder, false);
+                                          const mDate = new Date(m.date);
+                                          const timeStr = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }).format(mDate);
+                                          return (
+                                            <div key={m.id} className="p-4 sm:p-5">
+                                              {/* Match meta row */}
+                                              <div className="flex items-center justify-between gap-3 mb-3">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                  <span className={`text-[9px] font-black tracking-widest ${gc.text} ${gc.bg} border ${gc.border} px-2 py-0.5 rounded-md uppercase shrink-0`}>
+                                                    {groupsList.includes(m.group) ? `Bảng ${m.group}` : m.group}
+                                                  </span>
+                                                  <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest truncate">{m.location}</span>
+                                                </div>
+                                                <span className="font-mono text-[11px] font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-[#1A1A1A] px-2 py-0.5 rounded-md shrink-0">{timeStr}</span>
+                                              </div>
+
+                                              {/* Teams + chips */}
+                                              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] gap-3 sm:gap-4 items-start">
+                                                {/* Side 1 */}
+                                                <div className="space-y-2">
+                                                  <div className="flex items-center gap-2 min-w-0">
+                                                    <span className="text-lg shrink-0">{t1?.flag || '🏳️'}</span>
+                                                    <span className="font-display font-bold text-xs text-slate-800 dark:text-slate-100 truncate">{t1Name}</span>
+                                                  </div>
+                                                  <div className="flex flex-wrap gap-1">
+                                                    {a.side1.length > 0 ? a.side1.map(p => (
+                                                      <button
+                                                        type="button"
+                                                        key={p}
+                                                        onClick={() => {
+                                                          // chuyển sang side2
+                                                          setMatchAssignments(prev => {
+                                                            const cur = prev[m.id];
+                                                            if (!cur) return prev;
+                                                            return {
+                                                              ...prev,
+                                                              [m.id]: {
+                                                                side1: cur.side1.filter(x => x !== p),
+                                                                side2: [...cur.side2, p],
+                                                              },
+                                                            };
+                                                          });
+                                                        }}
+                                                        title={`Chuyển ${p} sang đội đối thủ`}
+                                                        className="group/chip relative inline-flex items-center gap-1 text-[10px] font-bold text-slate-700 dark:text-slate-200 bg-blue-50 dark:bg-sky-500/10 hover:bg-blue-100 dark:hover:bg-sky-500/20 px-2 py-1 pr-5 rounded-lg border border-blue-100 dark:border-sky-500/20 hover:border-blue-300 dark:hover:border-sky-400/40 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                                                      >
+                                                        <span className={`w-3.5 h-3.5 rounded-full bg-gradient-to-br ${getAvatarColor(p)} text-white text-[8px] font-black flex items-center justify-center`}>{p.charAt(0).toUpperCase()}</span>
+                                                        {p}
+                                                        <ArrowLeftRight className="absolute right-1 w-2.5 h-2.5 text-blue-500 opacity-0 group-hover/chip:opacity-100 transition-opacity" />
+                                                      </button>
+                                                    )) : <span className="text-[10px] italic text-slate-400 dark:text-slate-600">(trống)</span>}
+                                                  </div>
+                                                </div>
+
+                                                {/* VS divider */}
+                                                <div className="hidden sm:flex flex-col items-center justify-center pt-1">
+                                                  <span className="w-7 h-7 rounded-full bg-slate-100 dark:bg-[#1A1A1A] border border-slate-200 dark:border-slate-700 flex items-center justify-center text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">VS</span>
+                                                </div>
+
+                                                {/* Side 2 */}
+                                                <div className="space-y-2">
+                                                  <div className="flex items-center gap-2 min-w-0">
+                                                    <span className="text-lg shrink-0">{t2?.flag || '🏳️'}</span>
+                                                    <span className="font-display font-bold text-xs text-slate-800 dark:text-slate-100 truncate">{t2Name}</span>
+                                                  </div>
+                                                  <div className="flex flex-wrap gap-1">
+                                                    {a.side2.length > 0 ? a.side2.map(p => (
+                                                      <button
+                                                        type="button"
+                                                        key={p}
+                                                        onClick={() => {
+                                                          setMatchAssignments(prev => {
+                                                            const cur = prev[m.id];
+                                                            if (!cur) return prev;
+                                                            return {
+                                                              ...prev,
+                                                              [m.id]: {
+                                                                side1: [...cur.side1, p],
+                                                                side2: cur.side2.filter(x => x !== p),
+                                                              },
+                                                            };
+                                                          });
+                                                        }}
+                                                        title={`Chuyển ${p} sang đội đối thủ`}
+                                                        className="group/chip relative inline-flex items-center gap-1 text-[10px] font-bold text-slate-700 dark:text-slate-200 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 px-2 py-1 pr-5 rounded-lg border border-rose-100 dark:border-rose-500/20 hover:border-rose-300 dark:hover:border-rose-400/40 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#8A1538]/30"
+                                                      >
+                                                        <span className={`w-3.5 h-3.5 rounded-full bg-gradient-to-br ${getAvatarColor(p)} text-white text-[8px] font-black flex items-center justify-center`}>{p.charAt(0).toUpperCase()}</span>
+                                                        {p}
+                                                        <ArrowLeftRight className="absolute right-1 w-2.5 h-2.5 text-[#8A1538] opacity-0 group-hover/chip:opacity-100 transition-opacity" />
+                                                      </button>
+                                                    )) : <span className="text-[10px] italic text-slate-400 dark:text-slate-600">(trống)</span>}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </motion.div>
+                                  );
+                                })}
+                              </motion.div>
+                            );
+                          })()}
+                          {showGroupBreakdown && !isPerMatchMode && (
                           <motion.div
                             key="group-breakdown"
                             initial={{ opacity: 0, height: 0 }}
@@ -2621,6 +2859,14 @@ export default function App() {
               <div>
                 <h3 className="text-2xl font-display font-black text-slate-900 dark:text-white leading-tight italic">Lưu Lịch Sử</h3>
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1">Ghi lại khoảnh khắc chia bảng</p>
+                <span className={`inline-flex items-center gap-1.5 mt-2 text-[10px] font-black uppercase tracking-[0.18em] px-2 py-0.5 rounded-full ring-1 ${
+                  assignmentMode === 'by_match'
+                    ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-300/40'
+                    : 'bg-[#8A1538]/8 dark:bg-rose-500/10 text-[#8A1538] dark:text-rose-300 ring-[#8A1538]/20'
+                }`}>
+                  <Shuffle className="w-3 h-3" />
+                  {assignmentMode === 'by_match' ? 'Chế độ: Theo từng trận' : 'Chế độ: Theo bảng'}
+                </span>
               </div>
             </div>
             
