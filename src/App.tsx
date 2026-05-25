@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Calendar, Trophy, Save, Edit3, Users, Shuffle, ChevronLeft, ChevronRight, Home, Newspaper, Search, Filter, Sun, Moon, AlertTriangle, X, ArrowLeftRight } from 'lucide-react';
+import { Calendar, Trophy, Save, Edit3, Users, Shuffle, ChevronLeft, ChevronRight, Home, Newspaper, Search, Filter, Sun, Moon, AlertTriangle, X, ArrowLeftRight, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { initialTeams, initialMatches } from './data';
 import { Match, Team, TeamStats, GroupAssignmentHistory, MatchAssignment } from './types';
@@ -76,6 +76,18 @@ export default function App() {
   });
   const [isLoaded, setIsLoaded] = useState(false);
 
+  // ---- PWA install ----
+  const [installPromptEvent, setInstallPromptEvent] = useState<any>(null);
+  const [isAppInstalled, setIsAppInstalled] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return (
+      window.matchMedia?.('(display-mode: standalone)').matches ||
+      // @ts-ignore - iOS Safari
+      window.navigator.standalone === true
+    );
+  });
+  const [showIosInstall, setShowIosInstall] = useState(false);
+
   const [assignmentHistories, setAssignmentHistories] = useState<GroupAssignmentHistory[]>([]);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
@@ -117,6 +129,51 @@ export default function App() {
       localStorage.setItem('wc2026_theme', 'light');
     }
   }, [isDarkMode]);
+
+  // PWA install listeners
+  useEffect(() => {
+    const onBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setInstallPromptEvent(e);
+    };
+    const onInstalled = () => {
+      setInstallPromptEvent(null);
+      setIsAppInstalled(true);
+      setShowIosInstall(false);
+    };
+    const mql = window.matchMedia?.('(display-mode: standalone)');
+    const onDisplayChange = (ev: MediaQueryListEvent) => setIsAppInstalled(ev.matches);
+
+    window.addEventListener('beforeinstallprompt', onBeforeInstall);
+    window.addEventListener('appinstalled', onInstalled);
+    mql?.addEventListener?.('change', onDisplayChange);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBeforeInstall);
+      window.removeEventListener('appinstalled', onInstalled);
+      mql?.removeEventListener?.('change', onDisplayChange);
+    };
+  }, []);
+
+  const isIos = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent) && !/CriOS|FxiOS/.test(navigator.userAgent);
+
+  const handleInstallPWA = async () => {
+    if (installPromptEvent) {
+      try {
+        installPromptEvent.prompt();
+        const choice = await installPromptEvent.userChoice;
+        if (choice?.outcome === 'accepted') {
+          setIsAppInstalled(true);
+        }
+      } catch {
+        // ignore
+      } finally {
+        setInstallPromptEvent(null);
+      }
+    } else if (isIos) {
+      setShowIosInstall(true);
+    }
+  };
   
   // Load from local storage
   useEffect(() => {
@@ -680,6 +737,17 @@ export default function App() {
                 ? <Sun className="w-4 h-4 text-amber-400 group-hover:text-amber-500 group-hover:rotate-45 transition-transform" /> 
                 : <Moon className="w-4 h-4 text-indigo-500 group-hover:text-indigo-600 group-hover:-rotate-12 transition-transform" />}
             </button>
+
+            {!isAppInstalled && (installPromptEvent || isIos) && (
+              <button
+                onClick={handleInstallPWA}
+                title="Cài đặt ứng dụng"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-xs text-white bg-gradient-to-br from-[#A41A45] to-[#5C0E25] hover:from-[#B81F4F] hover:to-[#6E1130] transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-[#8A1538]/20 group"
+              >
+                <Download className="w-3.5 h-3.5 group-hover:translate-y-0.5 transition-transform" />
+                <span className="hidden sm:inline">Cài đặt</span>
+              </button>
+            )}
 
             <button
               onClick={handleResetData}
@@ -2717,6 +2785,66 @@ export default function App() {
           })}
         </nav>
       </div>
+
+      <AnimatePresence>
+        {showIosInstall && (
+          <motion.div
+            key="ios-install-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
+            onClick={() => setShowIosInstall(false)}
+          >
+            <motion.div
+              initial={{ y: 40, opacity: 0, scale: 0.96 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 40, opacity: 0, scale: 0.96 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-2xl"
+            >
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#A41A45] to-[#5C0E25] flex items-center justify-center shadow-lg shadow-[#8A1538]/30">
+                    <Download className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-black uppercase tracking-[0.25em] text-[#8A1538]">Cài đặt PWA</div>
+                    <h3 className="font-display text-xl font-black text-slate-900 dark:text-white leading-tight">Thêm vào Màn hình chính</h3>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowIosInstall(false)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <ol className="space-y-3 text-sm text-slate-700 dark:text-slate-300">
+                <li className="flex gap-3">
+                  <span className="w-6 h-6 rounded-full bg-[#8A1538] text-white text-[11px] font-black flex items-center justify-center shrink-0">1</span>
+                  <span>Nhấn nút <strong>Chia sẻ</strong> ở thanh dưới cùng Safari.</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="w-6 h-6 rounded-full bg-[#8A1538] text-white text-[11px] font-black flex items-center justify-center shrink-0">2</span>
+                  <span>Cuộn xuống và chọn <strong>"Thêm vào Màn hình chính"</strong>.</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="w-6 h-6 rounded-full bg-[#8A1538] text-white text-[11px] font-black flex items-center justify-center shrink-0">3</span>
+                  <span>Nhấn <strong>Thêm</strong> ở góc phải trên để cài đặt.</span>
+                </li>
+              </ol>
+              <button
+                onClick={() => setShowIosInstall(false)}
+                className="mt-5 w-full py-3 rounded-xl bg-slate-900 dark:bg-white dark:text-slate-900 text-white font-bold text-sm hover:bg-slate-800 dark:hover:bg-slate-100 transition active:scale-[0.98]"
+              >
+                Đã hiểu
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {showResetModal && (
