@@ -710,8 +710,8 @@ export default function App() {
                        <span className="w-8 h-1 bg-[#8A1538] rounded-full"></span>
                        <span className="text-[10px] font-black uppercase text-[#8A1538] tracking-[0.3em]">Official Schedule</span>
                     </div>
-                    <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 dark:text-white tracking-tight leading-[0.9]">Lịch Thi Đấu</h1>
-                    <p className="text-slate-500 dark:text-slate-400 font-medium text-lg max-w-xl">Hành trình chinh phục vinh quang tại Bắc Mỹ 2026</p>
+                    <h1 className="font-display text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 dark:text-white tracking-tight leading-[0.9]">Lịch Thi Đấu</h1>
+                    <p className="text-slate-500 dark:text-slate-400 font-medium text-sm sm:text-lg max-w-xl">Hành trình chinh phục vinh quang tại Bắc Mỹ 2026</p>
                   </div>
 
                   <div className="relative bg-gradient-to-br from-white to-slate-50 dark:from-[#141414] dark:to-[#0E0E0E] p-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] grid grid-cols-3 sm:inline-flex gap-1 backdrop-blur-md w-full md:w-auto">
@@ -782,7 +782,7 @@ export default function App() {
                     <div className="space-y-6">
                       <div className="flex items-center gap-4">
                         <div className="h-[1px] flex-1 bg-slate-200 dark:bg-slate-800"></div>
-                        <h2 className={`font-display text-3xl font-bold ${getGroupColor(selectedGroup).text} uppercase tracking-wide px-4`}>
+                        <h2 className={`font-display text-2xl sm:text-3xl font-bold ${getGroupColor(selectedGroup).text} uppercase tracking-wide px-4`}>
                           {groupsList.includes(selectedGroup) ? `Bảng ${selectedGroup}` : selectedGroup}
                         </h2>
                         <div className="h-[1px] flex-1 bg-slate-200 dark:bg-slate-800"></div>
@@ -912,7 +912,7 @@ export default function App() {
                                         Bracket
                                       </div>
                                     )}
-                                    <div className={`text-[10px] font-bold ${groupColor.text} ${groupColor.bg} px-3 py-1 rounded-full uppercase tracking-widest border ${groupColor.border} whitespace-nowrap`}>
+                                    <div className={`text-[8px] sm:text-[10px] font-bold ${groupColor.text} ${groupColor.bg} px-3 py-1 rounded-full uppercase tracking-widest border ${groupColor.border} whitespace-nowrap`}>
                                       {new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' }).format(date)}
                                     </div>
                                   </div>
@@ -1133,7 +1133,7 @@ export default function App() {
                              </div>
                              <div>
                                <h2 className="font-display text-4xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tighter">{stage}</h2>
-                               <p className="text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-[0.3em]">Knockout Stage</p>
+                               <p className="text-slate-400 dark:text-slate-500 font-bold text-[8px] sm:text-[10px] uppercase tracking-[0.3em]">Knockout Stage</p>
                              </div>
                              <div className="flex items-center gap-2 ml-auto">
                                <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border ${
